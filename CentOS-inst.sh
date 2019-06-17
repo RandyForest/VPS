@@ -100,15 +100,16 @@ yum -y install git
 git clone -b manyuser https://github.com/shadowsocksr-backup/shadowsocksr.git
 
 # 命令行方式启动 Shadowsocksr
-python shadowsocksr/shadowsocks/server.py -p 443 -k 123456 -m aes-256-cfb -O auth_chain_a -o tls1.2_ticket_auth -d start
+python shadowsocksr/shadowsocks/server.py -p 443 -k 123456 -m aes-256-cfb -O auth_aes128_md5 -o tls1.2_ticket_auth -d start
 
 # 以加载配置文件方式启动
 # python shadowsocksr/shadowsocks/server.py
 
 ## 安装 V2Ray ##
-bash <(curl -L -s https://install.direct/go.sh)
+bash <(curl https://install.direct/go.sh)
 
 # 配置 V2Ray
+# systemctl daemon-reload && systemctl restart v2ray.service
 
 # 运行 V2Ray
 service v2ray start
