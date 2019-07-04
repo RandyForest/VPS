@@ -25,18 +25,6 @@ setIp() {
         ((i++))
     done
 
-    #     sed -i "s/^BOOTPROTO=.*$/BOOTPROTO=static/" /etc/sysconfig/network-scripts/${ifcfg}
-    #     sed -i "s/^ONBOOT=.*$/ONBOOT=yes/" /etc/sysconfig/network-scripts/${ifcfg}
-    #     cat >>/etc/sysconfig/network-scripts/${ifcfg} <<-EOF
-    # IPADDR=${ip}
-    # NETMASK=255.255.255.0
-    # NETWORK=${gateway%.*}.0
-    # BROADCAST=${gateway%.*}.255
-    # GATEWAY=${gateway}
-    # DNS1=119.29.29.29
-    # DNS2=8.8.8.8
-    # EOF
-
     # 重启网络
     # service network restart
 
@@ -150,13 +138,17 @@ setSsh() {
 Port ${ssh_port}
 EOF
 
+    # 此配置文件修改了
+    # ssh端口号 22 > 2222
+    # cp ./ssh/sshd_config /etc/ssh/sshd_config
+
     # 向 firewall 中添加端口 2222
     firewall-cmd --zone=public --add-port=2222/tcp --permanent
 
     # 重启 firewall
     firewall-cmd --reload
 
-    # 在 SELinux 中添加 ssh 端口
+    # 在 SELinux 中添加 2222 端口
     semanage port -a -t ssh_port_t -p tcp 2222
 
     # 重启 ssh
@@ -195,6 +187,11 @@ installTomcat() {
         yum -y install java-latest-openjdk
     fi
 
+    firewall-cmd --version
+    if [ $? -ne 0 ]; then
+        yum -y install firewall-cmd
+    fi
+
     mkdir /usr/local/tomcat
 
     # 设置 Tomcat 的文件地址
@@ -209,25 +206,20 @@ installTomcat() {
     # 解压 Tomcat
     tar -z -x -f ${tomcat_file_url##*/} -C /usr/local/tomcat
 
-    # 启动 Tomcat
-    # /usr/local/tomcat/apache-tomcat-9.0.21/bin/startup.sh
-
     # 配置服务
-#     cat >/etc/systemd/system/tomcat.service <<-EOF
-# [Unit]
-# Description=Tomcat test
-# After=network.target
+    cat >/etc/systemd/system/tomcat.service <<-EOF
+[Unit]
+Description=Tomcat test
+After=network.target
 
-# [Service]
-# Type=forking
-# ExecStart=/usr/local/tomcat/${tomcat_homedirname}/bin/startup.sh
-# ExeStop=/usr/local/tomcat/${tomcat_homedirname}/bin/shutdown.sh
+[Service]
+Type=forking
+ExecStart=/usr/local/tomcat/${tomcat_homedirname}/bin/startup.sh
+ExeStop=/usr/local/tomcat/${tomcat_homedirname}/bin/shutdown.sh
 
-# [Install]
-# WantedBy=multi-user.target
-# EOF
-
-    cp ./tomcat/tomcat.service /etc/systemd/system/tomcat.service
+[Install]
+WantedBy=multi-user.target
+EOF
 
     systemctl daemon-reload
     systemctl start tomcat
@@ -253,6 +245,11 @@ installSs() {
         yum -y install python-pip
     fi
 
+    firewall-cmd --version
+    if [ $? -ne 0 ]; then
+        yum -y install firewall-cmd
+    fi
+
     # 更新 pip
     pip install --upgrade pip
 
@@ -269,17 +266,28 @@ installSs() {
     ss_method=aes-256-cfb
 
     # 命令行方式启动 Shadowsocks
-    ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
+    # ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
 
     # 复制 Shadowsocks 配置文件到 /ect
-    # cp -r shadowsocks /etc
+    mkdir -p /etc/shadowsocks
+    unalias cp
+    cp -f ./shadowsocks/config.json /etc/shadowsocks/config.json
 
-    # 加载配置文件方式启动 Shadowshocks
-    # ssserver -c /etc/shadowsocks/config.json -d start
+    # 配置服务
+    mkdir -p /etc/systemd/system
+    unalias cp
+    cp -f ./shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
+
+    # 服务方式启动 Shadowshocks
+    systemctl daemon-reload
+    systemctl start tomcat
+    systemctl enable tomcat
 
     # 将 Shadowsocks 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${ss_port}/tcp --permanent
     firewall-cmd --zone=public --add-port=${ss_port}/udp --permanent
+    firewall-cmd --zone=public --add-port=28989/tcp --permanent
+    firewall-cmd --zone=public --add-port=28989/udp --permanent
 
     # 重启 firewall
     firewall-cmd --reload
@@ -419,7 +427,7 @@ installKcptun() {
     tar -z -x -f ${kcptun_url##*/} -C /usr/local/kcptun
 
     # 配置 kcptun
-    cp -r ./kcptun/server-config.json /etc/kcptun/config.json
+    cp -f ./kcptun/server-config.json /etc/kcptun/config.json
 
     # 启动 kcptun
     ./server_linux_amd64 -c /etc/kcptun/config.json

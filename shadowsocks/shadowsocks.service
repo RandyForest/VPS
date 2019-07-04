@@ -1,0 +1,11 @@
+[Unit]
+Description=Shadowsocks
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/ssserver -c /etc/config.json -d start
+ExeStop=/usr/bin/ssserver -d stop
+
+[Install]
+WantedBy=multi-user.target
