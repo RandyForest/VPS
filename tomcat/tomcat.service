@@ -1,0 +1,11 @@
+[Unit]
+Description=Tomcat test
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/tomcat/${tomcat_homedirname}/bin/startup.sh
+ExeStop=/usr/local/tomcat/${tomcat_homedirname}/bin/shutdown.sh
+
+[Install]
+WantedBy=multi-user.target
