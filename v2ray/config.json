@@ -1,0 +1,94 @@
+{
+    "log": {
+        "access": "/var/log/v2ray/access.log",
+        "error": "/var/log/v2ray/error.log",
+        "loglevel": "warning"
+    },
+    "inbounds": [
+        {
+            "port": 443,
+            "listen": null,
+            "protocol": "vmess",
+            "sniffing": null,
+            "settings": {
+                "auth": null,
+                "udp": false,
+                "ip": null,
+                "clients": [
+                    {
+                        "id": "67ff0138-4873-4b0c-912d-a8649b24ecaa",
+                        "alterId": 64,
+                        "email": "t@t.tt",
+                        "level": 1,
+                        "security": null
+                    }
+                ]
+            },
+            "streamSettings": {
+                "network": "tcp",
+                "security": "tls",
+                "tlsSettings": {
+                    "serverName": "randybsk.tk",
+                    "certificates": [
+                        {
+                            "certificateFile": "/etc/v2ray/v2ray.crt",
+                            "keyFile": "/etc/v2ray/v2ray.key"
+                        }
+                    ]
+                },
+                "tcpSettings": null,
+                "kcpSettings": {
+                    "uplinkCapacity": 5,
+                    "downlinkCapacity": 100,
+                    "congestion": true,
+                    "header": {
+                        "type": "none"
+                    }
+                },
+                "wsSettings": null,
+                "httpSettings": null,
+                "quicSettings": null
+            }
+        },
+        {
+            "protocol": "dokodemo-door",
+            "address": "www.randybsk.tk",
+            "port": 8080,
+            "settings": {
+                "network": "tcp,udp",
+                "followRedirect": true,
+                "timeout": 30,
+                "userLevel": 5
+            },
+            "sniffing": {
+                "enabled": true,
+                "destOverride": [
+                    "http",
+                    "tls"
+                ]
+            }
+        }
+    ],
+    "outbounds": [
+        {
+            "protocol": "freedom",
+            "settings": {}
+        },
+        {
+            "protocol": "blackhole",
+            "settings": {},
+            "tag": "blocked"
+        }
+    ],
+    "routing": {
+        "rules": [
+            {
+                "type": "field",
+                "ip": [
+                    "geoip:private"
+                ],
+                "outboundTag": "blocked"
+            }
+        ]
+    }
+}
