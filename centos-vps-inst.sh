@@ -51,17 +51,33 @@ setIp() {
 
 }
 
+setRepo() {
+    # 安装 wget
+    yum -y install wget
+
+    # 备份
+    cp /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo。bak
+
+    wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+
+    yum clean all
+
+    yum makecache
+}
+
 installTools() {
     ## 更新及安装常用工具 ##
     echo "更新及安装常用工具"
 
     # 更新系统
-    # yum -y upgrade
+    yum -y upgrade
 
     # 安装 epel-release
     yum -y install epel-release
 
     # 修改库源 /etc/yum.repos.d/epel.repo
+    # sed -i 's|^#baseurl|baseurl|' /etc/yum.repos.d/epel.repo
+    # sed -i 's|^mirrorlist|#mirrorlist|' /etc/yum.repos.d/epel.repo
 
     # 安装 sudo
     yum -y install sudo
@@ -111,7 +127,7 @@ setSsh() {
     # 检查依赖
     firewall-cmd --version
     if [ $? -ne 0 ]; then
-        yum -y install firewall-cmd
+        yum -y install net-tools
     fi
 
     if [ $? -ne 0 ]; then
@@ -184,7 +200,7 @@ installTomcat() {
     java --version
     if [ $? -ne 0 ]; then
         # 安装 JDK
-        yum -y install java-latest-openjdk
+        yum -y install java-11-openjdk
     fi
 
     firewall-cmd --version
@@ -306,7 +322,7 @@ installSsr() {
     fi
 
     # 获取 Shadowsocksr
-    git clone -b manyuser https://github.com/shadowsocksr-backup/shadowsocksr.git
+    git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
 
     # 设置 Shadowsocksr 端口
     ssr_port=38989
@@ -354,10 +370,10 @@ installV2ray() {
     # 设置 V2Ray 端口
 
     # 配置 V2Ray
-    # systemctl daemon-reload && systemctl restart v2ray.service
 
     # 运行 V2Ray
-    service v2ray start
+    systemctl daemon-reload
+    systemctl restart v2ray.service
 
     # 为 V2Ray 开启防火墙
     # Create new chain
@@ -427,10 +443,12 @@ installKcptun() {
     tar -z -x -f ${kcptun_url##*/} -C /usr/local/kcptun
 
     # 配置 kcptun
+    mkdir -p /etc/kcptun/
+    unalias cp
     cp -f ./kcptun/server-config.json /etc/kcptun/config.json
 
     # 启动 kcptun
-    ./server_linux_amd64 -c /etc/kcptun/config.json
+    /usr/local/kcptun/server_linux_amd64 -c /etc/kcptun/config.json
 
 }
 
@@ -449,16 +467,17 @@ installAria2() {
 }
 
 # 入口
-setIp
+# setIp
+# setRepo
 installTools
 setSsh
 addUser
 installTomcat
 installSs
 installSsr
-# installV2ray
-installKcptun
+installV2ray
+# installKcptun
 # installAria2
 
 # 更新系统
-# yum -y update
+yum -y update
