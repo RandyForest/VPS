@@ -1,7 +1,7 @@
 # CentOS-min shell 脚本
 
+## 设置 IP ##
 setIp() {
-    ## 设置IP ##
     echo "设置IP"
 
     # 设置网关地址
@@ -51,6 +51,26 @@ setIp() {
 
 }
 
+## 设置 DNS ##
+setDns() {
+    i=0
+    while true; do
+        if [ ! -f "/etc/resolv.conf.bak${i}" ]; then
+            cp /etc/resolv.conf /etc/resolv.conf.bak${i}
+            break
+        fi
+        ((i++))
+    done
+
+    cat >>/etc/resolv.conf <<-EOF
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 119.29.29.29
+nameserver 233.5.5.5
+EOF
+}
+
+## 设置 yum 源 ##
 setRepo() {
     # 安装 wget
     yum -y install wget
@@ -65,8 +85,8 @@ setRepo() {
     yum makecache
 }
 
+## 更新及安装常用工具 ##
 installTools() {
-    ## 更新及安装常用工具 ##
     echo "更新及安装常用工具"
 
     # 更新系统
@@ -123,20 +143,19 @@ installTools() {
 
 }
 
+## 设置 ssh ##
 setSsh() {
-    # 设置 ssh
     echo "设置 ssh"
 
     # 检查依赖
-    firewall-cmd --version
-    if [ $? -ne 0 ]; then
+    if [ firewall-cmd --version ]; then
         # 安装 firewall
         yum -y install firewalld
         systemctl restart dbus
         systemctl restart firewalld
     fi
 
-    if [ $? -ne 0 ]; then
+    if [ semanage --help ]; then
         # 安装 policycoreutils-python
         yum -y install policycoreutils-python
     fi
@@ -144,7 +163,7 @@ setSsh() {
     # 设置 ssh 端口
     ssh_port=2222
 
-    # 修改 ssh 端口
+    # 备份配置文件
     i=0
     while true; do
         if [ ! -f "/etc/ssh/sshd_config.bak${i}" ]; then
@@ -154,6 +173,7 @@ setSsh() {
         ((i++))
     done
 
+    # 修改 ssh 端口
     cat >>/etc/ssh/sshd_config <<-EOF
 
 # 修改ssh端口
@@ -178,8 +198,8 @@ EOF
 
 }
 
+## 添加用户 ##
 addUser() {
-    # 添加用户 randy
     echo "添加新用户"
 
     # 设置用户名
@@ -195,24 +215,21 @@ addUser() {
     usermod -aG wheel ${user_name}
 }
 
+## 安装 Tomcat ##
 installTomcat() {
-    ## 安装 Tomcat ##
     echo "安装 Tomcat"
 
     # 检查依赖
-    wget --version
-    if [ $? -ne 0 ]; then
+    if [ wget --version ]; then
         yum -y install wget
     fi
 
-    java --version
-    if [ $? -ne 0 ]; then
+    if [ java --version ]; then
         # 安装 JDK
         yum -y install java-11-openjdk
     fi
 
-    firewall-cmd --version
-    if [ $? -ne 0 ]; then
+    if [ firewall-cmd --version ]; then
         # 安装 firewall
         yum -y install firewalld
         systemctl restart dbus
@@ -226,7 +243,7 @@ installTomcat() {
     tomcat_file_url=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
 
     # 设置 Tomcat 文件夹名
-    tomcat_homedirname=$(echo $tomcat_file_url | grep -o "apache-tomcat-[0-9]\+\.[0-9]\+\.[0-9]\+")
+    tomcat_homedir_name=$(echo $tomcat_file_url | grep -o "apache-tomcat-[0-9]\+\.[0-9]\+\.[0-9]\+")
 
     # 获取 Tomcat
     wget ${tomcat_file_url}
@@ -242,8 +259,8 @@ After=network.target
 
 [Service]
 Type=forking
-ExecStart=/usr/local/tomcat/${tomcat_homedirname}/bin/startup.sh
-ExeStop=/usr/local/tomcat/${tomcat_homedirname}/bin/shutdown.sh
+ExecStart=/usr/local/tomcat/${tomcat_homedir_name}/bin/startup.sh
+ExeStop=/usr/local/tomcat/${tomcat_homedir_name}/bin/shutdown.sh
 
 [Install]
 WantedBy=multi-user.target
@@ -253,28 +270,24 @@ EOF
     systemctl start tomcat
     systemctl enable tomcat
 
-    # 向防火墙添加 80 端口
+    # 向防火墙添加 80 端口,并将80端口的流量转到8080
     firewall-cmd --zone=public --add-port=80/tcp --permanent
-
-    # 将80端口的流量转到8080
     firewall-cmd --zone=public --add-forward-port=port=80:proto=tcp:toport=8080 --permanent
     firewall-cmd --reload
 
 }
 
+## 安装 Shadowsocks ##
 installSs() {
-    ## 安装 Shadowsocks ##
     echo "安装 Shadowsocks"
 
     # 安装依赖
-    pip --version
-    if [ $? -ne 0 ]; then
+    if [ pip --version ]; then
         # 安装 pip
         yum -y install python-pip
     fi
 
-    firewall-cmd --version
-    if [ $? -ne 0 ]; then
+    if [ firewall-cmd --version ]; then
         # 安装 firewall
         yum -y install firewalld
         systemctl restart dbus
@@ -326,8 +339,8 @@ installSs() {
 
 }
 
+## 安装 Shadowsocksr ##
 installSsr() {
-    ## 安装 Shadowsocksr ##
     echo "安装 Shadowsocksr"
 
     # 安装依赖
@@ -379,8 +392,8 @@ installSsr() {
 
 }
 
+## 安装 V2Ray ##
 installV2ray() {
-    ## 安装 V2Ray ##
     echo "安装 V2Ray"
 
     # 检查依赖
@@ -452,8 +465,8 @@ installV2ray() {
 
 }
 
+## 安装 kcptun ##
 installKcptun() {
-    ## 安装 kcptun ##
     echo "安装 kcptun"
 
     # 检查依赖
@@ -484,8 +497,8 @@ installKcptun() {
 
 }
 
+## 安装 aria2 ##
 installAria2() {
-    ## 安装并配置 aria2 ##
     echo "安装并配置 aria2"
 
     # 复制 aria2 的配置文件目录，需要把配置文件先放入当前目录下
@@ -500,6 +513,7 @@ installAria2() {
 
 # 入口
 # setIp
+setDns
 # setRepo
 installTools
 setSsh
