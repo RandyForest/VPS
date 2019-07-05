@@ -85,6 +85,9 @@ installTools() {
     # 安装 vim
     yum -y install vim
 
+    # 安装 firewall
+    yum -y install firewalld
+
     # 安装 net-tools
     yum -y install net-tools
 
@@ -127,7 +130,8 @@ setSsh() {
     # 检查依赖
     firewall-cmd --version
     if [ $? -ne 0 ]; then
-        yum -y install net-tools
+        # 安装 firewall
+        yum -y install firewalld
     fi
 
     if [ $? -ne 0 ]; then
@@ -185,6 +189,8 @@ addUser() {
         usermod -m -d /home/${user_name} ${user_name}
         echo "${user_pass}" | passwd --stdin ${user_name}
     fi
+
+    usermod -aG wheel ${user_name}
 }
 
 installTomcat() {
@@ -205,7 +211,8 @@ installTomcat() {
 
     firewall-cmd --version
     if [ $? -ne 0 ]; then
-        yum -y install firewall-cmd
+        # 安装 firewall
+        yum -y install firewalld
     fi
 
     mkdir /usr/local/tomcat
@@ -263,7 +270,8 @@ installSs() {
 
     firewall-cmd --version
     if [ $? -ne 0 ]; then
-        yum -y install firewall-cmd
+        # 安装 firewall
+        yum -y install firewalld
     fi
 
     # 更新 pip
@@ -321,6 +329,12 @@ installSsr() {
         yum -y install git
     fi
 
+    firewall-cmd --version
+    if [ $? -ne 0 ]; then
+        # 安装 firewall
+        yum -y install firewalld
+    fi
+
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
 
@@ -357,6 +371,13 @@ installSsr() {
 installV2ray() {
     ## 安装 V2Ray ##
     echo "安装 V2Ray"
+
+    # 检查依赖
+    firewall-cmd --version
+    if [ $? -ne 0 ]; then
+        # 安装 firewall
+        yum -y install firewalld
+    fi
 
     # /usr/bin/v2ray/v2ray：V2Ray 程序；
     # /usr/bin/v2ray/v2ctl：V2Ray 工具；
@@ -475,7 +496,7 @@ addUser
 installTomcat
 installSs
 installSsr
-installV2ray
+# installV2ray
 # installKcptun
 # installAria2
 
