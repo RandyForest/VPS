@@ -86,7 +86,7 @@ installTools() {
     yum -y install vim
 
     # 安装 firewall
-    yum -y install firewalld
+    # yum -y install firewalld
 
     # 安装 net-tools
     yum -y install net-tools
@@ -132,6 +132,8 @@ setSsh() {
     if [ $? -ne 0 ]; then
         # 安装 firewall
         yum -y install firewalld
+        systemctl restart dbus
+        systemctl restart firewalld
     fi
 
     if [ $? -ne 0 ]; then
@@ -213,6 +215,9 @@ installTomcat() {
     if [ $? -ne 0 ]; then
         # 安装 firewall
         yum -y install firewalld
+        systemctl restart dbus
+        systemctl restart firewalld
+
     fi
 
     mkdir /usr/local/tomcat
@@ -272,6 +277,9 @@ installSs() {
     if [ $? -ne 0 ]; then
         # 安装 firewall
         yum -y install firewalld
+        systemctl restart dbus
+        systemctl restart firewalld
+
     fi
 
     # 更新 pip
@@ -333,6 +341,9 @@ installSsr() {
     if [ $? -ne 0 ]; then
         # 安装 firewall
         yum -y install firewalld
+        systemctl restart dbus
+        systemctl restart firewalld
+
     fi
 
     # 获取 Shadowsocksr
