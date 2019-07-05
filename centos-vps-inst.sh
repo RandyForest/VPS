@@ -1,8 +1,66 @@
+#!/usr/bin/bash
 # CentOS-min shell 脚本
+
+# 安装函数
+# 用法： installTool [-a] [-c 命令] 工具名
+# 选项：
+#   -a  设置测试参数
+#   -c  设置用于测试的命令名称
+installTool() {
+    arg="--version"
+    while [ -n "$1" ]; do
+        case "$1" in
+        -a)
+            arg=$2
+            shift
+            ;;
+        -c)
+            cmd=$2
+            shift
+            ;;
+        *)
+            tool=$1
+            ;;
+        esac
+        shift
+    done
+
+    if [ -z ${cmd} ]; then
+        cmd=${tool}
+    fi
+
+    ${cmd} ${arg} >/dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        echo "已安装 ${tool}"
+    else
+        echo "未检测到${tool}，正在安装${tool}..."
+        yum -y install ${tool}
+    fi
+}
+
+# 备份文件函数
+# 用法：backupFile 文件
+backupFile() {
+    echo "正在备份文件 $1"
+
+    i=0
+    while true; do
+        if [ ! -f "$1.bak${i}" ]; then
+            cp $1 $1.bak${i}
+            if [ $? -eq 0 ]; then
+                echo "备份完成，备份文件到 $1.bak${i}"
+            else
+                echo "备份失败！"
+            fi
+            break
+        fi
+        ((i++))
+    done
+}
 
 ## 设置 IP ##
 setIp() {
-    echo "设置IP"
+    echo "# 设置 IP #"
 
     # 设置网关地址
     gateway=192.168.0.1
@@ -16,14 +74,16 @@ setIp() {
     ifcfg=ifcfg-${ifname}
 
     # 备份并修改网卡文件
-    i=0
-    while true; do
-        if [ ! -f "/etc/sysconfig/network-scripts/${ifcfg}.bak${i}" ]; then
-            cp /etc/sysconfig/network-scripts/${ifcfg} /etc/sysconfig/network-scripts/${ifcfg}.bak${i}
-            break
-        fi
-        ((i++))
-    done
+    # i=0
+    # while true; do
+    #     if [ ! -f "/etc/sysconfig/network-scripts/${ifcfg}.bak${i}" ]; then
+    #         cp /etc/sysconfig/network-scripts/${ifcfg} /etc/sysconfig/network-scripts/${ifcfg}.bak${i}
+    #         break
+    #     fi
+    #     ((i++))
+    # done
+
+    backupFile /etc/sysconfig/network-scripts/${ifcfg}
 
     # 重启网络
     # service network restart
@@ -53,15 +113,19 @@ setIp() {
 
 ## 设置 DNS ##
 setDns() {
-    i=0
-    while true; do
-        if [ ! -f "/etc/resolv.conf.bak${i}" ]; then
-            cp /etc/resolv.conf /etc/resolv.conf.bak${i}
-            break
-        fi
-        ((i++))
-    done
+    echo "# 设置 DNS #"
+    # i=0
+    # while true; do
+    #     if [ ! -f "/etc/resolv.conf.bak${i}" ]; then
+    #         cp /etc/resolv.conf /etc/resolv.conf.bak${i}
+    #         break
+    #     fi
+    #     ((i++))
+    # done
 
+    backupFile /etc/resolv.conf
+
+    echo "添加 DNS..."
     cat >>/etc/resolv.conf <<-EOF
 nameserver 8.8.8.8
 nameserver 8.8.4.4
@@ -72,11 +136,13 @@ EOF
 
 ## 设置 yum 源 ##
 setRepo() {
+    echo "# 设置 yum 源 #"
+
     # 安装 wget
-    yum -y install wget
+    installTool wget
 
     # 备份
-    cp /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo。bak
+    backupFile /etc/yum.repos.d/CentOS-Base.repo
 
     wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 
@@ -87,7 +153,7 @@ setRepo() {
 
 ## 更新及安装常用工具 ##
 installTools() {
-    echo "更新及安装常用工具"
+    echo "# 更新及安装常用工具 #"
 
     # 更新系统
     yum -y upgrade
@@ -100,22 +166,22 @@ installTools() {
     # sed -i 's|^mirrorlist|#mirrorlist|' /etc/yum.repos.d/epel.repo
 
     # 安装 sudo
-    yum -y install sudo
+    installTool sudo
 
     # 安装 vim
-    yum -y install vim
+    installTool vim
 
     # 安装 firewall
     # yum -y install firewalld
 
     # 安装 net-tools
-    yum -y install net-tools
+    installTool -c netstat net-tools
 
     # 安装 wget
-    yum -y install wget
+    installTool wget
 
     # 安装 policycoreutils-python
-    yum -y install policycoreutils-python
+    installTool -c semanage policycoreutils-python
 
     # 安装 gcc
     # yum install -y gcc
@@ -145,33 +211,39 @@ installTools() {
 
 ## 设置 ssh ##
 setSsh() {
-    echo "设置 ssh"
+    echo "# 设置 ssh #"
 
     # 检查依赖
-    if [ firewall-cmd --version ]; then
-        # 安装 firewall
-        yum -y install firewalld
-        systemctl restart dbus
-        systemctl restart firewalld
-    fi
+    # if [ firewall-cmd --version ]; then
+    #     # 安装 firewall
+    #     yum -y install firewalld
+    #     systemctl restart dbus
+    #     systemctl restart firewalld
+    # fi
 
-    if [ semanage --help ]; then
-        # 安装 policycoreutils-python
-        yum -y install policycoreutils-python
-    fi
+    installTool -c firewall-cmd firewalld
+
+    # if [ semanage --help ]; then
+    #     # 安装 policycoreutils-python
+    #     yum -y install policycoreutils-python
+    # fi
+
+    installTool -c semanage policycoreutils-python
 
     # 设置 ssh 端口
     ssh_port=2222
 
     # 备份配置文件
-    i=0
-    while true; do
-        if [ ! -f "/etc/ssh/sshd_config.bak${i}" ]; then
-            cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak${i}
-            break
-        fi
-        ((i++))
-    done
+    # i=0
+    # while true; do
+    #     if [ ! -f "/etc/ssh/sshd_config.bak${i}" ]; then
+    #         cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak${i}
+    #         break
+    #     fi
+    #     ((i++))
+    # done
+
+    backupFile /etc/ssh/sshd_config
 
     # 修改 ssh 端口
     cat >>/etc/ssh/sshd_config <<-EOF
@@ -200,43 +272,65 @@ EOF
 
 ## 添加用户 ##
 addUser() {
-    echo "添加新用户"
+    echo "# 添加用户 #"
 
     # 设置用户名
     user_name=randy
     user_pass=rr
 
-    useradd -r -m -p ${user_pass} ${user_name}
+    echo "创建用户 ${user_name}..."
+    useradd -r -m ${user_name}
     if [ $? -ne 0 ]; then
+        echo "用户已存在，修改用户..."
         usermod -m -d /home/${user_name} ${user_name}
-        echo "${user_pass}" | passwd --stdin ${user_name}
     fi
 
+    echo "添加密码 ${user_pass}..."
+    echo "${user_pass}" | passwd --stdin ${user_name}
+
+    echo "将用户加入 wheel 用户组..."
     usermod -aG wheel ${user_name}
 }
 
 ## 安装 Tomcat ##
 installTomcat() {
-    echo "安装 Tomcat"
+    echo "# 安装 Tomcat #"
 
-    # 检查依赖
-    if [ wget --version ]; then
-        yum -y install wget
-    fi
+    echo "检查依赖..."
+    # wget --version >/dev/null 2>&1
+    # if [ $? -eq 0 ]; then
+    #     echo "wget OK!"
+    # else
+    #     echo "未检测到wget，正在安装wget..."
+    #     yum -y install wget
+    # fi
 
-    if [ java --version ]; then
-        # 安装 JDK
-        yum -y install java-11-openjdk
-    fi
+    installTool wget
 
-    if [ firewall-cmd --version ]; then
-        # 安装 firewall
-        yum -y install firewalld
-        systemctl restart dbus
-        systemctl restart firewalld
+    # java --version >/dev/null 2>&1
+    # if [ $? -eq 0 ]; then
+    #     echo "java OK!"
+    # else
+    #     echo "未检测到java，正在安装java..."
+    #     yum -y install java-11-openjdk
+    # fi
 
-    fi
+    installTool -c java java-11-openjdk
 
+    # firewall-cmd --version >/dev/null 2>&1
+    # if [ $? -eq 0 ]; then
+    #     echo "java OK!"
+    # else
+    #     # 安装 firewall
+    #     echo "未检测到 firewall，正在安装 firewall ..."
+    #     yum -y install firewalld
+    #     systemctl restart dbus
+    #     systemctl restart firewalld
+    # fi
+
+    installTool -c firewall-cmd firewalld
+
+    echo "创建目录 /usr/local/tomcat"
     mkdir /usr/local/tomcat
 
     # 设置 Tomcat 的文件地址
@@ -249,9 +343,11 @@ installTomcat() {
     wget ${tomcat_file_url}
 
     # 解压 Tomcat
+    echo "解压..."
     tar -z -x -f ${tomcat_file_url##*/} -C /usr/local/tomcat
 
     # 配置服务
+    echo "配置服务..."
     cat >/etc/systemd/system/tomcat.service <<-EOF
 [Unit]
 Description=Tomcat test
@@ -279,21 +375,26 @@ EOF
 
 ## 安装 Shadowsocks ##
 installSs() {
-    echo "安装 Shadowsocks"
+    echo "# 安装 Shadowsocks #"
 
-    # 安装依赖
-    if [ pip --version ]; then
-        # 安装 pip
-        yum -y install python-pip
-    fi
+    echo "检查依赖..."
+    # pip --version >/dev/null 2>&1
+    # if [ pip --version ]; then
+    #     # 安装 pip
+    #     yum -y install python-pip
+    # fi
 
-    if [ firewall-cmd --version ]; then
-        # 安装 firewall
-        yum -y install firewalld
-        systemctl restart dbus
-        systemctl restart firewalld
+    installTool -c pip python-pip
 
-    fi
+    # if [ firewall-cmd --version ]; then
+    #     # 安装 firewall
+    #     yum -y install firewalld
+    #     systemctl restart dbus
+    #     systemctl restart firewalld
+
+    # fi
+
+    installTool -c firewall-cmd firewalld
 
     # 更新 pip
     pip install --upgrade pip
@@ -317,11 +418,12 @@ installSs() {
     mkdir -p /etc/shadowsocks
     unalias cp
     cp -f ./shadowsocks/config.json /etc/shadowsocks/config.json
+    alias cp='cp -i'
 
     # 配置服务
-    mkdir -p /etc/systemd/system
     unalias cp
     cp -f ./shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
+    alias cp='cp -i'
 
     # 服务方式启动 Shadowshocks
     systemctl daemon-reload
@@ -341,23 +443,27 @@ installSs() {
 
 ## 安装 Shadowsocksr ##
 installSsr() {
-    echo "安装 Shadowsocksr"
+    echo "# 安装 Shadowsocksr #"
 
     # 安装依赖
-    git --version
-    if [ $? -ne 0 ]; then
-        # 安装 git
-        yum -y install git
-    fi
+    # git --version
+    # if [ $? -ne 0 ]; then
+    #     # 安装 git
+    #     yum -y install git
+    # fi
 
-    firewall-cmd --version
-    if [ $? -ne 0 ]; then
-        # 安装 firewall
-        yum -y install firewalld
-        systemctl restart dbus
-        systemctl restart firewalld
+    installTool git
 
-    fi
+    # firewall-cmd --version
+    # if [ $? -ne 0 ]; then
+    #     # 安装 firewall
+    #     yum -y install firewalld
+    #     systemctl restart dbus
+    #     systemctl restart firewalld
+
+    # fi
+
+    installTool -c firewall-cmd firewalld
 
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
@@ -394,14 +500,16 @@ installSsr() {
 
 ## 安装 V2Ray ##
 installV2ray() {
-    echo "安装 V2Ray"
+    echo "# 安装 V2Ray #"
 
     # 检查依赖
-    firewall-cmd --version
-    if [ $? -ne 0 ]; then
-        # 安装 firewall
-        yum -y install firewalld
-    fi
+    # firewall-cmd --version
+    # if [ $? -ne 0 ]; then
+    #     # 安装 firewall
+    #     yum -y install firewalld
+    # fi
+
+    installTool -c firewall-cmd firewalld
 
     # /usr/bin/v2ray/v2ray：V2Ray 程序；
     # /usr/bin/v2ray/v2ctl：V2Ray 工具；
@@ -467,13 +575,15 @@ installV2ray() {
 
 ## 安装 kcptun ##
 installKcptun() {
-    echo "安装 kcptun"
+    echo "# 安装 kcptun #"
 
     # 检查依赖
-    wget --version
-    if [ $? -ne 0 ]; then
-        yum -y install wget
-    fi
+    # wget --version
+    # if [ $? -ne 0 ]; then
+    #     yum -y install wget
+    # fi
+
+    installTool wget
 
     # 设置 kcptun 地址
     kcptun_url=https://github.com/xtaci/kcptun/releases/download/v20190611/kcptun-linux-amd64-20190611.tar.gz
@@ -491,6 +601,7 @@ installKcptun() {
     mkdir -p /etc/kcptun/
     unalias cp
     cp -f ./kcptun/server-config.json /etc/kcptun/config.json
+    alias cp='cp -i'
 
     # 启动 kcptun
     /usr/local/kcptun/server_linux_amd64 -c /etc/kcptun/config.json
@@ -499,7 +610,7 @@ installKcptun() {
 
 ## 安装 aria2 ##
 installAria2() {
-    echo "安装并配置 aria2"
+    echo "# 安装 aria2 #"
 
     # 复制 aria2 的配置文件目录，需要把配置文件先放入当前目录下
     cp -r ./aria2 /etc
