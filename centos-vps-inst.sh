@@ -1,6 +1,12 @@
 #!/usr/bin/bash
 # CentOS-min shell 脚本
 
+# 设置当前路径
+basedir=$(
+    cd $(dirname $0)
+    pwd -P
+)
+
 # 安装函数
 # 用法： installTool [-a] [-c 命令] 工具名
 # 选项：
@@ -39,7 +45,7 @@ installTool() {
 }
 
 # 备份文件函数
-# 用法：backupFile 文件
+# 用法：    backupFile 文件
 backupFile() {
     echo "正在备份文件 $1"
 
@@ -74,15 +80,6 @@ setIp() {
     ifcfg=ifcfg-${ifname}
 
     # 备份并修改网卡文件
-    # i=0
-    # while true; do
-    #     if [ ! -f "/etc/sysconfig/network-scripts/${ifcfg}.bak${i}" ]; then
-    #         cp /etc/sysconfig/network-scripts/${ifcfg} /etc/sysconfig/network-scripts/${ifcfg}.bak${i}
-    #         break
-    #     fi
-    #     ((i++))
-    # done
-
     backupFile /etc/sysconfig/network-scripts/${ifcfg}
 
     # 重启网络
@@ -114,14 +111,6 @@ setIp() {
 ## 设置 DNS ##
 setDns() {
     echo "# 设置 DNS #"
-    # i=0
-    # while true; do
-    #     if [ ! -f "/etc/resolv.conf.bak${i}" ]; then
-    #         cp /etc/resolv.conf /etc/resolv.conf.bak${i}
-    #         break
-    #     fi
-    #     ((i++))
-    # done
 
     backupFile /etc/resolv.conf
 
@@ -214,19 +203,8 @@ setSsh() {
     echo "# 设置 ssh #"
 
     # 检查依赖
-    # if [ firewall-cmd --version ]; then
-    #     # 安装 firewall
-    #     yum -y install firewalld
-    #     systemctl restart dbus
-    #     systemctl restart firewalld
-    # fi
 
     installTool -c firewall-cmd firewalld
-
-    # if [ semanage --help ]; then
-    #     # 安装 policycoreutils-python
-    #     yum -y install policycoreutils-python
-    # fi
 
     installTool -c semanage policycoreutils-python
 
@@ -234,15 +212,6 @@ setSsh() {
     ssh_port=2222
 
     # 备份配置文件
-    # i=0
-    # while true; do
-    #     if [ ! -f "/etc/ssh/sshd_config.bak${i}" ]; then
-    #         cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak${i}
-    #         break
-    #     fi
-    #     ((i++))
-    # done
-
     backupFile /etc/ssh/sshd_config
 
     # 修改 ssh 端口
@@ -254,7 +223,7 @@ EOF
 
     # 此配置文件修改了
     # ssh端口号 22 > 2222
-    # cp ./ssh/sshd_config /etc/ssh/sshd_config
+    # cp ${basedir}/ssh/sshd_config /etc/ssh/sshd_config
 
     # 向 firewall 中添加端口 2222
     firewall-cmd --zone=public --add-port=2222/tcp --permanent
@@ -356,7 +325,7 @@ After=network.target
 [Service]
 Type=forking
 ExecStart=/usr/local/tomcat/${tomcat_homedir_name}/bin/startup.sh
-ExeStop=/usr/local/tomcat/${tomcat_homedir_name}/bin/shutdown.sh
+ExecStop=/usr/local/tomcat/${tomcat_homedir_name}/bin/shutdown.sh
 
 [Install]
 WantedBy=multi-user.target
@@ -417,12 +386,12 @@ installSs() {
     # 复制 Shadowsocks 配置文件到 /ect
     mkdir -p /etc/shadowsocks
     unalias cp
-    cp -f ./shadowsocks/config.json /etc/shadowsocks/config.json
+    cp -f ${basedir}/shadowsocks/config.json /etc/shadowsocks/config.json
     alias cp='cp -i'
 
     # 配置服务
     unalias cp
-    cp -f ./shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
+    cp -f ${basedir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
     alias cp='cp -i'
 
     # 服务方式启动 Shadowshocks
@@ -600,7 +569,7 @@ installKcptun() {
     # 配置 kcptun
     mkdir -p /etc/kcptun/
     unalias cp
-    cp -f ./kcptun/server-config.json /etc/kcptun/config.json
+    cp -f ${basedir}/kcptun/server-config.json /etc/kcptun/config.json
     alias cp='cp -i'
 
     # 启动 kcptun
@@ -613,7 +582,7 @@ installAria2() {
     echo "# 安装 aria2 #"
 
     # 复制 aria2 的配置文件目录，需要把配置文件先放入当前目录下
-    cp -r ./aria2 /etc
+    cp -r ${basedir}/aria2 /etc
 
     # 安装 aria2
     yum install -y aria2

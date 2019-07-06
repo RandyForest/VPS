@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=forking
 ExecStart=/usr/bin/ssserver -c /etc/shadowsocks/config.json -d start
-ExeStop=/usr/bin/ssserver -d stop
+ExecStop=/usr/bin/ssserver -d stop
 
 [Install]
 WantedBy=multi-user.target
