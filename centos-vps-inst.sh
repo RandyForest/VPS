@@ -40,7 +40,7 @@ installTool() {
         echo "已安装 ${tool}"
     else
         echo "未检测到${tool}，正在安装${tool}..."
-        yum -y install ${tool}
+        yum -q -y install ${tool}
     fi
 }
 
@@ -194,7 +194,7 @@ installTools() {
     installTool vim
 
     # 安装 firewall
-    # yum -y install firewalld
+    installTool -m firewall-cmd firewalld
 
     # 安装 net-tools
     installTool -m netstat net-tools
@@ -763,7 +763,7 @@ else
     addUser
     installTomcat
     installSs
-    installSsr
+    # installSsr
     installV2ray
 fi
 
