@@ -89,7 +89,7 @@ setNetwork() {
     ifname_default=enp0s3
     dns_list_default=(8.8.8.8 8.8.4.4 119.29.29.29 233.5.5.5)
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         echo "注意：更改IP会导致网络断开。"
 
         echo "网卡列表："
@@ -241,7 +241,7 @@ setSsh() {
     installTool -c firewall-cmd firewalld
     installTool -c semanage policycoreutils-python
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入ssh监听端口：" ssh_port
         if [ -z "${ssh_port}" ]; then
             ssh_port=${ssh_port_default}
@@ -289,7 +289,7 @@ addUser() {
     user_name_default=randy
     user_pass_default=rr
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入用户名（默认：${user_name_default}）：" user_name
         if [ -z "${user_name}" ]; then
             user_name=${user_name_default}
@@ -333,7 +333,7 @@ installTomcat() {
     # 默认配置
     tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url##*/}）：" tomcat_file_url
         if [ -z "${tomcat_file_url}" ]; then
             tomcat_file_url=${tomcat_file_url_default}
@@ -407,7 +407,7 @@ installSs() {
     # 默认 Shadowsocks 加密方法
     ss_method_defualt=aes-256-cfb
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入 Shadowsocks 监听端口（默认：${ss_port_defualt}）：" ss_port
         if [ -z "${ss_port}" ]; then
             ss_port=${ss_port_defualt}
@@ -502,7 +502,7 @@ installSsr() {
     # 默认 Shadowsocksr OBFS
     ssr_obfs_default=tls1.2_ticket_auth
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入 Shadowsocks 监听端口（默认：${ssr_port_defualt}）：" ssr_port
         if [ -z "${ssr_port}" ]; then
             ssr_port=${ssr_port_defualt}
@@ -597,7 +597,7 @@ installV2ray() {
     v2ray_port_default=58989
     v2ray_uuid_default=67ff0138-4873-4b0c-912d-a8649b24ecaa
 
-    if [ isManual -eq 1 ]; then
+    if [ ${isManual} -eq 1 ]; then
         read -p "输入V2Ray端口（默认：${v2ray_port_default}）：" v2ray_port
         if [ -z "${ssr_obfs}" ]; then
             v2ray_port=${v2ray_port_default}
