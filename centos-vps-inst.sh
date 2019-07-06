@@ -722,6 +722,9 @@ installAria2() {
 }
 
 # 入口
+# 默认自动设置
+isManual=0
+
 read -p "是否手动设置："
 if [ "$REPLY" = "y" ]; then
     echo "进入手动设置..."
