@@ -116,6 +116,7 @@ setNetwork() {
     else
         echo "临时更改DNS..."
         setDns
+        return
     fi
 
     # 设置网卡文件
@@ -722,11 +723,13 @@ installAria2() {
 # 入口
 read -p "是否手动设置？："
 if [ "$REPLY" = "y" ]; then
+    echo "进入手动设置..."
     isManual=1
+else
+    echo "进入自动设置..."
 fi
 
 setNetwork
-setDns
 # setRepo
 installTools
 setSsh
