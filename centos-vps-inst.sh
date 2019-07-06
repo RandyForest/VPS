@@ -31,7 +31,7 @@ installTool() {
         shift
     done
 
-    if [ -z ${cmd} ]; then
+    if [ -z "${cmd}" ]; then
         cmd=${tool}
     fi
 
@@ -64,18 +64,60 @@ backupFile() {
     done
 }
 
+## 设置 DNS ##
+setDns() {
+    echo "# 设置 DNS #"
+
+    backupFile /etc/resolv.conf
+
+    echo "添加 DNS..."
+    cat >>/etc/resolv.conf <<-EOF
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 119.29.29.29
+nameserver 233.5.5.5
+EOF
+}
+
 ## 设置 IP ##
-setIp() {
+setNetwork() {
     echo "# 设置 IP #"
 
-    # 设置网关地址
-    gateway=192.168.0.1
+    # 默认值
+    # gateway_default=192.168.0.1
+    ip_default=192.168.0.21
+    ifname_default=enp0s3
+    dns_list_default=(8.8.8.8 8.8.4.4 119.29.29.29 233.5.5.5)
 
-    # 设置IP地址
-    ip=${gateway%.*}.21
+    if [ isManual -eq 1 ]; then
+        echo "注意：更改IP会导致网络断开。"
 
-    # 设置网卡名
-    ifname=enp0s3
+        echo "网卡列表："
+        nmcli device
+        read -p "输入网卡（默认：${ifname_default}）：" ifname
+        if [ -z "${ifname}" ]; then
+            ifname=${ifname_default}
+        fi
+
+        read -p "输入IP地址（默认：${ip_default}）：" ip
+        if [ -z "${ip}" ]; then
+            ip=${ip_default}
+        fi
+
+        # read -p "输入网关地址（默认：${gateway_default}）：" gateway
+        # if [ -z "${gateway}" ]; then
+        #     gateway=${gateway_default}
+        # fi
+
+        read -p "输入dns（多个DNS以空格隔开）：" dns_list
+        if [ -z "${dns_list}" ]; then
+            dns_list=${dns_list_default}
+        fi
+    else
+        echo "临时更改DNS..."
+        setDns
+    fi
+
     # 设置网卡文件
     ifcfg=ifcfg-${ifname}
 
@@ -91,36 +133,25 @@ setIp() {
     nmcli connection modify ${ifname} +ipv4.addresses ${ip}/24
 
     # 添加 DNS
-    nmcli connection modify ${ifname} +ipv4.dns 119.29.29.29
-    nmcli connection modify ${ifname} +ipv4.dns 8.8.8.8
+    for dns in ${dns_list[@]}; do
+        nmcli connection modify ${ifname} +ipv4.dns ${dns}
+    done
+
+    # nmcli connection modify ${ifname} +ipv4.dns 119.29.29.29
+    # nmcli connection modify ${ifname} +ipv4.dns 8.8.8.8
 
     # 添加网关
-    nmcli connection modify ${ifname} ipv4.gateway ${gateway}
+    # nmcli connection modify ${ifname} ipv4.gateway ${gateway}
 
     # 设置手动获取 IP
     nmcli connection modify ${ifname} ipv4.method manual
 
-    # 自动启动
+    # 设置自动启动
     nmcli connection modify ${ifname} connection.autoconnect yes
 
-    # 启动配置文件
+    # 启动网卡连接
     nmcli connection up ${ifname}
 
-}
-
-## 设置 DNS ##
-setDns() {
-    echo "# 设置 DNS #"
-
-    backupFile /etc/resolv.conf
-
-    echo "添加 DNS..."
-    cat >>/etc/resolv.conf <<-EOF
-nameserver 8.8.8.8
-nameserver 8.8.4.4
-nameserver 119.29.29.29
-nameserver 233.5.5.5
-EOF
 }
 
 ## 设置 yum 源 ##
@@ -202,14 +233,24 @@ installTools() {
 setSsh() {
     echo "# 设置 ssh #"
 
+    # 默认配置
+    ssh_port_default=2222
+
     # 检查依赖
-
     installTool -c firewall-cmd firewalld
-
     installTool -c semanage policycoreutils-python
 
-    # 设置 ssh 端口
-    ssh_port=2222
+    if [ isManual -eq 1 ]; then
+        read -p "输入ssh监听端口：" ssh_port
+        if [ -z "${ssh_port}" ]; then
+            ssh_port=${ssh_port_default}
+        fi
+    else
+        # 设置 ssh 端口
+        echo "设置默认ssh监听端口 ${ssh_port_default}"
+        ssh_port=${ssh_port_default}
+
+    fi
 
     # 备份配置文件
     backupFile /etc/ssh/sshd_config
@@ -226,13 +267,13 @@ EOF
     # cp ${basedir}/ssh/sshd_config /etc/ssh/sshd_config
 
     # 向 firewall 中添加端口 2222
-    firewall-cmd --zone=public --add-port=2222/tcp --permanent
+    firewall-cmd --zone=public --add-port=${ssh_port}/tcp --permanent
 
     # 重启 firewall
     firewall-cmd --reload
 
     # 在 SELinux 中添加 2222 端口
-    semanage port -a -t ssh_port_t -p tcp 2222
+    semanage port -a -t ssh_port_t -p tcp ${ssh_port}
 
     # 重启 ssh
     service sshd restart
@@ -243,9 +284,27 @@ EOF
 addUser() {
     echo "# 添加用户 #"
 
-    # 设置用户名
-    user_name=randy
-    user_pass=rr
+    # 默认配置
+    user_name_default=randy
+    user_pass_default=rr
+
+    if [ isManual -eq 1 ]; then
+        read -p "输入用户名（默认：${user_name_default}）：" user_name
+        if [ -z "${user_name}" ]; then
+            user_name=${user_name_default}
+        fi
+
+        read -p "输入密码（默认：${user_pass_default}）：" user_pass
+        if [ -z "${user_pass}" ]; then
+            user_name=${user_pass_default}
+        fi
+    else
+        echo "设置默认用户名 ${user_name_default}"
+        user_name=${user_name_default}
+
+        echo "设置默认密码 ${user_pass_default}"
+        user_pass=${user_pass_default}
+    fi
 
     echo "创建用户 ${user_name}..."
     useradd -r -m ${user_name}
@@ -266,44 +325,25 @@ installTomcat() {
     echo "# 安装 Tomcat #"
 
     echo "检查依赖..."
-    # wget --version >/dev/null 2>&1
-    # if [ $? -eq 0 ]; then
-    #     echo "wget OK!"
-    # else
-    #     echo "未检测到wget，正在安装wget..."
-    #     yum -y install wget
-    # fi
-
     installTool wget
-
-    # java --version >/dev/null 2>&1
-    # if [ $? -eq 0 ]; then
-    #     echo "java OK!"
-    # else
-    #     echo "未检测到java，正在安装java..."
-    #     yum -y install java-11-openjdk
-    # fi
-
     installTool -c java java-11-openjdk
-
-    # firewall-cmd --version >/dev/null 2>&1
-    # if [ $? -eq 0 ]; then
-    #     echo "java OK!"
-    # else
-    #     # 安装 firewall
-    #     echo "未检测到 firewall，正在安装 firewall ..."
-    #     yum -y install firewalld
-    #     systemctl restart dbus
-    #     systemctl restart firewalld
-    # fi
-
     installTool -c firewall-cmd firewalld
+
+    # 默认配置
+    tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
+
+    if [ isManual -eq 1 ]; then
+        read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url##*/}）：" tomcat_file_url
+        if [ -z "${tomcat_file_url}" ]; then
+            tomcat_file_url=${tomcat_file_url_default}
+        fi
+    else
+        echo "设置默认Tomcat文件下载地址 ${tomcat_file_url_default}"
+        tomcat_file_url=${tomcat_file_url_default}
+    fi
 
     echo "创建目录 /usr/local/tomcat"
     mkdir /usr/local/tomcat
-
-    # 设置 Tomcat 的文件地址
-    tomcat_file_url=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
 
     # 设置 Tomcat 文件夹名
     tomcat_homedir_name=$(echo $tomcat_file_url | grep -o "apache-tomcat-[0-9]\+\.[0-9]\+\.[0-9]\+")
@@ -347,22 +387,7 @@ installSs() {
     echo "# 安装 Shadowsocks #"
 
     echo "检查依赖..."
-    # pip --version >/dev/null 2>&1
-    # if [ pip --version ]; then
-    #     # 安装 pip
-    #     yum -y install python-pip
-    # fi
-
     installTool -c pip python-pip
-
-    # if [ firewall-cmd --version ]; then
-    #     # 安装 firewall
-    #     yum -y install firewalld
-    #     systemctl restart dbus
-    #     systemctl restart firewalld
-
-    # fi
-
     installTool -c firewall-cmd firewalld
 
     # 更新 pip
@@ -371,39 +396,79 @@ installSs() {
     # 安装 Shadowsocks
     pip install shadowsocks
 
-    # 设置 Shadowsocks 端口
-    ss_port=18989
+    # 默认配置
+    # 默认 Shadowsocks 监听端口
+    ss_port_defualt=18989
 
-    # 设置 Shadowsocks 密码
-    ss_pass=123456
+    # 默认 Shadowsocks 密码
+    ss_pass_defualt=123456
 
-    # 设置 Shadowsocks 加密方法
-    ss_method=aes-256-cfb
+    # 默认 Shadowsocks 加密方法
+    ss_method_defualt=aes-256-cfb
+
+    if [ isManual -eq 1 ]; then
+        read -p "输入 Shadowsocks 监听端口（默认：${ss_port_defualt}）：" ss_port
+        if [ -z "${ss_port}" ]; then
+            ss_port=${ss_port_defualt}
+        fi
+
+        read -p "输入 Shadowsocks 密码（默认：${ss_pass_defualt}）：" ss_pass
+        if [ -z "${ss_pass}" ]; then
+            ss_pass=${ss_pass_defualt}
+        fi
+
+        read -p "输入 Shadowsocks 加密方法（默认：${ss_method_defualt}）：" ss_method
+        if [ -z "${ss_method}" ]; then
+            ss_method=${ss_method_defualt}
+        fi
+    else
+        echo "设置默认 Shadowsocks 监听端口：${ss_port_defualt}"
+        ss_port=${ss_port_defualt}
+
+        echo "设置默认 Shadowsocks 密码：${ss_pass_defualt}"
+        ss_pass=${ss_pass_defualt}
+
+        echo "设置默认 Shadowsocks 加密方法：${ss_method_defualt}"
+        ss_method=${ss_method_defualt}
+    fi
 
     # 命令行方式启动 Shadowsocks
     # ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
 
     # 复制 Shadowsocks 配置文件到 /ect
-    mkdir -p /etc/shadowsocks
-    unalias cp
-    cp -f ${basedir}/shadowsocks/config.json /etc/shadowsocks/config.json
-    alias cp='cp -i'
+    # mkdir -p /etc/shadowsocks
+    # unalias cp
+    # cp -f ${basedir}/shadowsocks/config.json /etc/shadowsocks/config.json
+    # alias cp='cp -i'
 
     # 配置服务
-    unalias cp
-    cp -f ${basedir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
-    alias cp='cp -i'
+    # unalias cp
+    # cp -f ${basedir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
+    # alias cp='cp -i'
+
+    echo "配置服务..."
+    cat >/etc/systemd/system/shadowsocks.service <<-EOF
+[Unit]
+Description=Shadowsocks
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
+ExecStop=/usr/bin/ssserver -d stop
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
     # 服务方式启动 Shadowshocks
     systemctl daemon-reload
-    systemctl start tomcat
-    systemctl enable tomcat
+    systemctl start shadowsocks
+    systemctl enable shadowsocks
 
     # 将 Shadowsocks 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${ss_port}/tcp --permanent
     firewall-cmd --zone=public --add-port=${ss_port}/udp --permanent
-    firewall-cmd --zone=public --add-port=28989/tcp --permanent
-    firewall-cmd --zone=public --add-port=28989/udp --permanent
 
     # 重启 firewall
     firewall-cmd --reload
@@ -414,49 +479,91 @@ installSs() {
 installSsr() {
     echo "# 安装 Shadowsocksr #"
 
-    # 安装依赖
-    # git --version
-    # if [ $? -ne 0 ]; then
-    #     # 安装 git
-    #     yum -y install git
-    # fi
-
+    echo "检查依赖..."
     installTool git
-
-    # firewall-cmd --version
-    # if [ $? -ne 0 ]; then
-    #     # 安装 firewall
-    #     yum -y install firewalld
-    #     systemctl restart dbus
-    #     systemctl restart firewalld
-
-    # fi
-
     installTool -c firewall-cmd firewalld
 
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
 
-    # 设置 Shadowsocksr 端口
-    ssr_port=38989
+    mv ./shadowsocksr /usr/local/
 
-    # 设置 Shadowsocksr 密码
-    ssr_pass=123456
+    # 默认配置
+    # 默认 Shadowsocksr 端口
+    ssr_port_default=38989
 
-    # 设置 Shadowsocksr 加密方式
-    ssr_method=aes-256-cfb
+    # 默认 Shadowsocksr 密码
+    ssr_pass_default=123456
 
-    # 设置 Shadowsocksr OBFS
-    ssr_obfs=tls1.2_ticket_auth
+    # 默认 Shadowsocksr 加密方式
+    ssr_method_default=aes-256-cfb
+
+    # 默认 Shadowsocksr OBFS
+    ssr_obfs_default=tls1.2_ticket_auth
+
+    if [ isManual -eq 1 ]; then
+        read -p "输入 Shadowsocks 监听端口（默认：${ssr_port_defualt}）：" ssr_port
+        if [ -z "${ssr_port}" ]; then
+            ssr_port=${ssr_port_defualt}
+        fi
+
+        read -p "输入 Shadowsocks 密码（默认：${ssr_port_defualt}）：" ssr_pass
+        if [ -z "${ssr_pass}" ]; then
+            ssr_pass=${ssr_pass_defualt}
+        fi
+
+        read -p "输入 Shadowsocks 加密方法（默认：${ssr_port_defualt}）：" ssr_method
+        if [ -z "${ssr_method}" ]; then
+            ssr_method=${ssr_method_defualt}
+        fi
+
+        read -p "输入 Shadowsocks OBFS（默认：${ssr_obfs_default}）：" ssr_obfs
+        if [ -z "${ssr_obfs}" ]; then
+            ssr_obfs=${ssr_obfs_default}
+        fi
+    else
+        echo "设置默认 Shadowsocks 监听端口：${ssr_port_defualt}"
+        ssr_port=${ssr_port_defualt}
+
+        echo "设置默认 Shadowsocks 密码：${ssr_pass_defualt}"
+        ssr_pass=${ssr_pass_defualt}
+
+        echo "设置默认 Shadowsocks 加密方法：${ssr_method_defualt}"
+        ssr_method=${ssr_method_defualt}
+
+        echo "设置默认 Shadowsocks OBFS：${ssr_obfs_default}"
+        ssr_obfs=${ssr_obfs_default}
+
+    fi
 
     # 命令行方式启动 Shadowsocksr
-    python shadowsocksr/shadowsocks/server.py -p ${ssr_port} -k ${ssr_pass} -m ${ssr_method} -o ${ssr_obfs} -d start
+    python /usr/local/shadowsocksr/shadowsocks/server.py -p ${ssr_port} -k ${ssr_pass} -m ${ssr_method} -o ${ssr_obfs} -d start
 
     # 复制 Shadowsocksr 配置文件到 /ect
     # cp -r shadowsocksr /etc
 
     # 以加载配置文件方式启动
     # python shadowsocksr/shadowsocks/server.py -c /etc/shadowsocksr/config.json -d start
+
+    echo "配置服务..."
+    cat >/etc/systemd/system/shadowsocksr.service <<-EOF
+[Unit]
+Description=Shadowsocksr
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/bin/python /usr/local/shadowsocksr/shadowsocks/server.py -p ${ssr_port} -k ${ssr_pass} -m ${ssr_method} -o ${ssr_obfs} -d start
+ExecStop=/bin/python /usr/local/shadowsocksr/shadowsocks/server.py -d stop
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # 服务方式启动 Shadowshocks
+    systemctl daemon-reload
+    systemctl start shadowsocksr
+    systemctl enable shadowsocksr
 
     # 将 Shadowsocks 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${ssr_port}/tcp --permanent
@@ -472,12 +579,6 @@ installV2ray() {
     echo "# 安装 V2Ray #"
 
     # 检查依赖
-    # firewall-cmd --version
-    # if [ $? -ne 0 ]; then
-    #     # 安装 firewall
-    #     yum -y install firewalld
-    # fi
-
     installTool -c firewall-cmd firewalld
 
     # /usr/bin/v2ray/v2ray：V2Ray 程序；
@@ -487,51 +588,78 @@ installV2ray() {
     # /usr/bin/v2ray/geosite.dat：域名数据文件
     # /etc/systemd/system/v2ray.service: Systemd
     # /etc/init.d/v2ray: SysV
-    bash <(curl https://install.direct/go.sh)
+    bash <(curl https://install.direct/go.sh) | tee /tmp/v2ray_install.log
 
-    # 设置 V2Ray 端口
+    port_tmp=$(grep "^PORT:[0-9]\+" /tmp/v2ray_install.log | grep -o "[0-9]\+")
 
-    # 配置 V2Ray
+    # 默认配置
+    v2ray_port_default=58989
+    v2ray_uuid_default=67ff0138-4873-4b0c-912d-a8649b24ecaa
+
+    if [ isManual -eq 1 ]; then
+        read -p "输入V2Ray端口（默认：${v2ray_port_default}）：" v2ray_port
+        if [ -z "${ssr_obfs}" ]; then
+            v2ray_port=${v2ray_port_default}
+        fi
+
+        read -p "输入V2Ray UUID（默认：${v2ray_uuid_default}）：" v2ray_uuid
+        if [ -z "${ssr_obfs}" ]; then
+            v2ray_uuid=${v2ray_uuid_default}
+        fi
+    else
+        echo "设置默认V2Ray端口：${v2ray_port_default}"
+        v2ray_port=${v2ray_port_default}
+
+        echo "设置默认V2Ray UUID：${v2ray_uuid_default}"
+        v2ray_uuid=${v2ray_uuid_default}
+    fi
+
+    # 修改端口
+    sed -i 's/\"port\":${port_tmp}.*/\"port\":${v2ray_port}/' /etc/v2ray/config.json
+
+    # 修改UUID
+    sed -i 's/\"id\":.*/\"id\":${v2ray_uuid}/' /etc/v2ray/config.json
 
     # 运行 V2Ray
     systemctl daemon-reload
-    systemctl restart v2ray.service
+    systemctl start v2ray.service
+    systemctl enable v2ray.service
 
     # 为 V2Ray 开启防火墙
     # Create new chain
-    iptables -t nat -N V2RAY
-    iptables -t mangle -N V2RAY
-    iptables -t mangle -N V2RAY_MARK
+    # iptables -t nat -N V2RAY
+    # iptables -t mangle -N V2RAY
+    # iptables -t mangle -N V2RAY_MARK
 
     # Ignore your V2Ray server's addresses
     # It's very IMPORTANT, just be careful.
-    iptables -t nat -A V2RAY -d 107.175.69.194 -j RETURN
+    # iptables -t nat -A V2RAY -d 107.175.69.194 -j RETURN
 
     # Ignore LANs and any other addresses you'd like to bypass the proxy
     # See Wikipedia and RFC5735 for full list of reserved networks.
-    iptables -t nat -A V2RAY -d 0.0.0.0/8 -j RETURN
-    iptables -t nat -A V2RAY -d 10.0.0.0/8 -j RETURN
-    iptables -t nat -A V2RAY -d 127.0.0.0/8 -j RETURN
-    iptables -t nat -A V2RAY -d 169.254.0.0/16 -j RETURN
-    iptables -t nat -A V2RAY -d 172.16.0.0/12 -j RETURN
-    iptables -t nat -A V2RAY -d 192.168.0.0/16 -j RETURN
-    iptables -t nat -A V2RAY -d 224.0.0.0/4 -j RETURN
-    iptables -t nat -A V2RAY -d 240.0.0.0/4 -j RETURN
-    iptables -t nat -A V2RAY -d 117.150.3.134 -j RETURN
+    # iptables -t nat -A V2RAY -d 0.0.0.0/8 -j RETURN
+    # iptables -t nat -A V2RAY -d 10.0.0.0/8 -j RETURN
+    # iptables -t nat -A V2RAY -d 127.0.0.0/8 -j RETURN
+    # iptables -t nat -A V2RAY -d 169.254.0.0/16 -j RETURN
+    # iptables -t nat -A V2RAY -d 172.16.0.0/12 -j RETURN
+    # iptables -t nat -A V2RAY -d 192.168.0.0/16 -j RETURN
+    # iptables -t nat -A V2RAY -d 224.0.0.0/4 -j RETURN
+    # iptables -t nat -A V2RAY -d 240.0.0.0/4 -j RETURN
+    # iptables -t nat -A V2RAY -d 117.150.3.134 -j RETURN
 
     # Anything else should be redirected to Dokodemo-door's local port
-    iptables -t nat -A V2RAY -p tcp -j REDIRECT --to-ports 8080
+    # iptables -t nat -A V2RAY -p tcp -j REDIRECT --to-ports 8080
 
     # Add any UDP rules
-    ip route add local default dev lo table 100
-    ip rule add fwmark 1 lookup 100
-    iptables -t mangle -A V2RAY -p udp --dport 53 -j TPROXY --on-port 12345 --tproxy-mark 0x01/0x01
-    iptables -t mangle -A V2RAY_MARK -p udp --dport 53 -j MARK --set-mark 1
+    # ip route add local default dev lo table 100
+    # ip rule add fwmark 1 lookup 100
+    # iptables -t mangle -A V2RAY -p udp --dport 53 -j TPROXY --on-port 12345 --tproxy-mark 0x01/0x01
+    # iptables -t mangle -A V2RAY_MARK -p udp --dport 53 -j MARK --set-mark 1
 
     # Apply the rules
-    iptables -t nat -A OUTPUT -p tcp -j V2RAY
-    iptables -t mangle -A PREROUTING -j V2RAY
-    iptables -t mangle -A OUTPUT -j V2RAY_MARK
+    # iptables -t nat -A OUTPUT -p tcp -j V2RAY
+    # iptables -t mangle -A PREROUTING -j V2RAY
+    # iptables -t mangle -A OUTPUT -j V2RAY_MARK
 
     # 将 Shadowsocks 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${v2ray_port}/tcp --permanent
@@ -592,7 +720,12 @@ installAria2() {
 }
 
 # 入口
-# setIp
+read -p "是否手动设置？："
+if [ "$REPLY" = "y" ]; then
+    isManual=1
+fi
+
+setNetwork
 setDns
 # setRepo
 installTools
