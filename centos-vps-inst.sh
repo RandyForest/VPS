@@ -400,38 +400,38 @@ installSs() {
 
     # 默认配置
     # 默认 Shadowsocks 监听端口
-    ss_port_defualt=18989
+    ss_port_default=18989
 
     # 默认 Shadowsocks 密码
-    ss_pass_defualt=123456
+    ss_pass_default=123456
 
     # 默认 Shadowsocks 加密方法
-    ss_method_defualt=aes-256-cfb
+    ss_method_default=aes-256-cfb
 
     if [ ${isManual} -eq 1 ]; then
-        read -p "输入 Shadowsocks 监听端口（默认：${ss_port_defualt}）：" ss_port
+        read -p "输入 Shadowsocks 监听端口（默认：${ss_port_default}）：" ss_port
         if [ -z "${ss_port}" ]; then
-            ss_port=${ss_port_defualt}
+            ss_port=${ss_port_default}
         fi
 
-        read -p "输入 Shadowsocks 密码（默认：${ss_pass_defualt}）：" ss_pass
+        read -p "输入 Shadowsocks 密码（默认：${ss_pass_default}）：" ss_pass
         if [ -z "${ss_pass}" ]; then
-            ss_pass=${ss_pass_defualt}
+            ss_pass=${ss_pass_default}
         fi
 
-        read -p "输入 Shadowsocks 加密方法（默认：${ss_method_defualt}）：" ss_method
+        read -p "输入 Shadowsocks 加密方法（默认：${ss_method_default}）：" ss_method
         if [ -z "${ss_method}" ]; then
-            ss_method=${ss_method_defualt}
+            ss_method=${ss_method_default}
         fi
     else
-        echo "设置默认 Shadowsocks 监听端口：${ss_port_defualt}"
-        ss_port=${ss_port_defualt}
+        echo "设置默认 Shadowsocks 监听端口：${ss_port_default}"
+        ss_port=${ss_port_default}
 
-        echo "设置默认 Shadowsocks 密码：${ss_pass_defualt}"
-        ss_pass=${ss_pass_defualt}
+        echo "设置默认 Shadowsocks 密码：${ss_pass_default}"
+        ss_pass=${ss_pass_default}
 
-        echo "设置默认 Shadowsocks 加密方法：${ss_method_defualt}"
-        ss_method=${ss_method_defualt}
+        echo "设置默认 Shadowsocks 加密方法：${ss_method_default}"
+        ss_method=${ss_method_default}
     fi
 
     # 命令行方式启动 Shadowsocks
@@ -504,36 +504,36 @@ installSsr() {
     ssr_obfs_default=tls1.2_ticket_auth
 
     if [ ${isManual} -eq 1 ]; then
-        read -p "输入 Shadowsocks 监听端口（默认：${ssr_port_defualt}）：" ssr_port
+        read -p "输入 Shadowsocksr 监听端口（默认：${ssr_port_default}）：" ssr_port
         if [ -z "${ssr_port}" ]; then
-            ssr_port=${ssr_port_defualt}
+            ssr_port=${ssr_port_default}
         fi
 
-        read -p "输入 Shadowsocks 密码（默认：${ssr_port_defualt}）：" ssr_pass
+        read -p "输入 Shadowsocksr 密码（默认：${ssr_pass_default}）：" ssr_pass
         if [ -z "${ssr_pass}" ]; then
-            ssr_pass=${ssr_pass_defualt}
+            ssr_pass=${ssr_pass_default}
         fi
 
-        read -p "输入 Shadowsocks 加密方法（默认：${ssr_port_defualt}）：" ssr_method
+        read -p "输入 Shadowsocksr 加密方法（默认：${ssr_method_default}）：" ssr_method
         if [ -z "${ssr_method}" ]; then
-            ssr_method=${ssr_method_defualt}
+            ssr_method=${ssr_method_default}
         fi
 
-        read -p "输入 Shadowsocks OBFS（默认：${ssr_obfs_default}）：" ssr_obfs
+        read -p "输入 Shadowsocksr OBFS（默认：${ssr_obfs_default}）：" ssr_obfs
         if [ -z "${ssr_obfs}" ]; then
             ssr_obfs=${ssr_obfs_default}
         fi
     else
-        echo "设置默认 Shadowsocks 监听端口：${ssr_port_defualt}"
-        ssr_port=${ssr_port_defualt}
+        echo "设置默认 Shadowsocksr 监听端口：${ssr_port_default}"
+        ssr_port=${ssr_port_default}
 
-        echo "设置默认 Shadowsocks 密码：${ssr_pass_defualt}"
-        ssr_pass=${ssr_pass_defualt}
+        echo "设置默认 Shadowsocksr 密码：${ssr_pass_default}"
+        ssr_pass=${ssr_pass_default}
 
-        echo "设置默认 Shadowsocks 加密方法：${ssr_method_defualt}"
-        ssr_method=${ssr_method_defualt}
+        echo "设置默认 Shadowsocksr 加密方法：${ssr_method_default}"
+        ssr_method=${ssr_method_default}
 
-        echo "设置默认 Shadowsocks OBFS：${ssr_obfs_default}"
+        echo "设置默认 Shadowsocksr OBFS：${ssr_obfs_default}"
         ssr_obfs=${ssr_obfs_default}
 
     fi
@@ -562,12 +562,12 @@ ExecStop=/bin/python /usr/local/shadowsocksr/shadowsocks/server.py -d stop
 WantedBy=multi-user.target
 EOF
 
-    # 服务方式启动 Shadowshocks
+    # 服务方式启动 Shadowsocksr
     systemctl daemon-reload
     systemctl start shadowsocksr
     systemctl enable shadowsocksr
 
-    # 将 Shadowsocks 的端口加入防火墙
+    # 将 Shadowsocksr 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${ssr_port}/tcp --permanent
     firewall-cmd --zone=public --add-port=${ssr_port}/udp --permanent
 
@@ -663,7 +663,7 @@ installV2ray() {
     # iptables -t mangle -A PREROUTING -j V2RAY
     # iptables -t mangle -A OUTPUT -j V2RAY_MARK
 
-    # 将 Shadowsocks 的端口加入防火墙
+    # 将 V2Ray 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${v2ray_port}/tcp --permanent
     firewall-cmd --zone=public --add-port=${v2ray_port}/udp --permanent
 
