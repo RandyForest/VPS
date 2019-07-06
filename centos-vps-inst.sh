@@ -8,10 +8,10 @@ basedir=$(
 )
 
 # 安装函数
-# 用法： installTool [-a] [-c 命令] 工具名
+# 用法： installTool [-a] [-m 命令] 工具名
 # 选项：
 #   -a  设置测试参数
-#   -c  设置用于测试的命令名称
+#   -m  设置用于测试的命令名称
 installTool() {
     arg="--version"
     while [ -n "$1" ]; do
@@ -20,7 +20,7 @@ installTool() {
             arg=$2
             shift
             ;;
-        -c)
+        -m)
             cmd=$2
             shift
             ;;
@@ -109,7 +109,8 @@ setNetwork() {
         #     gateway=${gateway_default}
         # fi
 
-        read -p "输入dns（多个DNS以空格隔开）：" dns_list
+        read -p "输入dns（多个DNS以空格隔开）：" dns_list_tmp
+        dns_list=($(ehco ${dns_list_tmp}))
         if [ -z "${dns_list}" ]; then
             dns_list=${dns_list_default}
         fi
@@ -196,13 +197,13 @@ installTools() {
     # yum -y install firewalld
 
     # 安装 net-tools
-    installTool -c netstat net-tools
+    installTool -m netstat net-tools
 
     # 安装 wget
     installTool wget
 
     # 安装 policycoreutils-python
-    installTool -c semanage policycoreutils-python
+    installTool -m semanage policycoreutils-python
 
     # 安装 gcc
     # yum install -y gcc
@@ -238,8 +239,8 @@ setSsh() {
     ssh_port_default=2222
 
     # 检查依赖
-    installTool -c firewall-cmd firewalld
-    installTool -c semanage policycoreutils-python
+    installTool -m firewall-cmd firewalld
+    installTool -m semanage policycoreutils-python
 
     if [ ${isManual} -eq 1 ]; then
         read -p "输入ssh监听端口：" ssh_port
@@ -327,8 +328,8 @@ installTomcat() {
 
     echo "检查依赖..."
     installTool wget
-    installTool -c java java-11-openjdk
-    installTool -c firewall-cmd firewalld
+    installTool -m java java-11-openjdk
+    installTool -m firewall-cmd firewalld
 
     # 默认配置
     tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
@@ -388,8 +389,8 @@ installSs() {
     echo "# 安装 Shadowsocks #"
 
     echo "检查依赖..."
-    installTool -c pip python-pip
-    installTool -c firewall-cmd firewalld
+    installTool -m pip python-pip
+    installTool -m firewall-cmd firewalld
 
     # 更新 pip
     pip install --upgrade pip
@@ -482,7 +483,7 @@ installSsr() {
 
     echo "检查依赖..."
     installTool git
-    installTool -c firewall-cmd firewalld
+    installTool -m firewall-cmd firewalld
 
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
@@ -580,7 +581,7 @@ installV2ray() {
     echo "# 安装 V2Ray #"
 
     # 检查依赖
-    installTool -c firewall-cmd firewalld
+    installTool -m firewall-cmd firewalld
 
     # /usr/bin/v2ray/v2ray：V2Ray 程序；
     # /usr/bin/v2ray/v2ctl：V2Ray 工具；
@@ -721,23 +722,49 @@ installAria2() {
 }
 
 # 入口
-read -p "是否手动设置？："
+read -p "是否手动设置："
 if [ "$REPLY" = "y" ]; then
     echo "进入手动设置..."
     isManual=1
+
+    while [ -n "${opt_list}" ]; do
+        cat <<-EOF
+    1. 设置网络
+    2. 更新及安装常用应用
+    3. 设置ssh
+    4. 添加用户
+    5. 安装Tomcat
+    6. 安装Shadowsocks
+    7. 安装Shadowsocksr
+    8. 安装V2Ray
+    q. 退出
+EOF
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) setNetwork ;;
+        2) installTools ;;
+        3) setSsh ;;
+        4) addUser ;;
+        5) installTomcat ;;
+        6) installSs ;;
+        7) installSsr ;;
+        8) installV2ray ;;
+        q) exit ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
 else
     echo "进入自动设置..."
+    installTools
+    setSsh
+    addUser
+    installTomcat
+    installSs
+    installSsr
+    installV2ray
 fi
 
-setNetwork
 # setRepo
-installTools
-setSsh
-addUser
-installTomcat
-installSs
-installSsr
-# installV2ray
 # installKcptun
 # installAria2
 
