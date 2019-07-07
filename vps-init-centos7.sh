@@ -178,10 +178,10 @@ installTools() {
     echo "# 更新及安装常用工具 #"
 
     # 更新系统
-    yum -y upgrade
+    yum -q -y upgrade
 
     # 安装 epel-release
-    yum -y install epel-release
+    yum -q -y install epel-release
 
     # 修改库源 /etc/yum.repos.d/epel.repo
     # sed -i 's|^#baseurl|baseurl|' /etc/yum.repos.d/epel.repo
@@ -202,8 +202,11 @@ installTools() {
     # 安装 wget
     installTool wget
 
+    # 安装 pip
+    installTool -m pip python-pip
+
     # 安装 policycoreutils-python
-    installTool -m semanage policycoreutils-python
+    installTool -m semanage -a "--help" policycoreutils-python
 
     # 安装 gcc
     # yum install -y gcc
@@ -240,7 +243,7 @@ setSsh() {
 
     # 检查依赖
     installTool -m firewall-cmd firewalld
-    installTool -m semanage policycoreutils-python
+    installTool -m semanage -a "--help" policycoreutils-python
 
     if [ ${isManual} -eq 1 ]; then
         read -p "输入ssh监听端口：" ssh_port
@@ -335,7 +338,7 @@ installTomcat() {
     tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
 
     if [ ${isManual} -eq 1 ]; then
-        read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url##*/}）：" tomcat_file_url
+        read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url_default##*/}）：" tomcat_file_url
         if [ -z "${tomcat_file_url}" ]; then
             tomcat_file_url=${tomcat_file_url_default}
         fi
@@ -727,10 +730,10 @@ isManual=0
 
 read -p "是否手动设置："
 if [ "$REPLY" = "y" ]; then
-    echo "进入手动设置..."
+    echo "进入手动设置"
     isManual=1
 
-    while [ -n "${opt_list}" ]; do
+    while true ; do
         cat <<-EOF
     1. 设置网络
     2. 更新及安装常用应用
@@ -757,7 +760,7 @@ EOF
         esac
     done
 else
-    echo "进入自动设置..."
+    echo "进入自动设置"
     installTools
     setSsh
     addUser
