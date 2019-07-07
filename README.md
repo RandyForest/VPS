@@ -6,6 +6,6 @@
 很多操作需要有root权限。
 
 ```bash
-bash vps-init-centos.sh
+sudo bash vps-init-centos.sh
 ```
 

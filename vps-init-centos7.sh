@@ -2,47 +2,14 @@
 # CentOS-min shell 脚本
 
 # 设置当前路径
-basedir=$(
+base_dir=$(
     cd $(dirname $0)
     pwd -P
 )
 
-# 安装函数
-# 用法： installTool [-a] [-m 命令] 工具名
-# 选项：
-#   -a  设置测试参数
-#   -m  设置用于测试的命令名称
-installTool() {
-    arg="--version"
-    while [ -n "$1" ]; do
-        case "$1" in
-        -a)
-            arg=$2
-            shift
-            ;;
-        -m)
-            cmd=$2
-            shift
-            ;;
-        *)
-            tool=$1
-            ;;
-        esac
-        shift
-    done
+# 设置PATH
+PATH=${PATH}:${base_dir}:${base_dir/tools}
 
-    if [ -z "${cmd}" ]; then
-        cmd=${tool}
-    fi
-
-    ${cmd} ${arg} >/dev/null 2>&1
-    if [ $? -eq 0 ]; then
-        echo "已安装 ${tool}"
-    else
-        echo "未检测到${tool}，正在安装${tool}..."
-        yum -q -y install ${tool}
-    fi
-}
 
 # 备份文件函数
 # 用法：    backupFile 文件
@@ -89,7 +56,7 @@ setNetwork() {
     ifname_default=enp0s3
     dns_list_default=(8.8.8.8 8.8.4.4 119.29.29.29 233.5.5.5)
 
-    if [ ${isManual} -eq 1 ]; then
+    if [ ${is_manual} -eq 1 ]; then
         echo "注意：更改IP会导致网络断开。"
 
         echo "网卡列表："
@@ -161,7 +128,7 @@ setRepo() {
     echo "# 设置 yum 源 #"
 
     # 安装 wget
-    installTool wget
+    bash install-tool.sh wget
 
     # 备份
     backupFile /etc/yum.repos.d/CentOS-Base.repo
@@ -188,25 +155,25 @@ installTools() {
     # sed -i 's|^mirrorlist|#mirrorlist|' /etc/yum.repos.d/epel.repo
 
     # 安装 sudo
-    installTool sudo
+    bash install-tool.sh sudo
 
     # 安装 vim
-    installTool vim
+    bash install-tool.sh vim
 
     # 安装 firewall
-    installTool -m firewall-cmd firewalld
+    bash install-tool.sh -m firewall-cmd firewalld
 
     # 安装 net-tools
-    installTool -m netstat net-tools
+    bash install-tool.sh -m netstat net-tools
 
     # 安装 wget
-    installTool wget
+    bash install-tool.sh wget
 
     # 安装 pip
-    installTool -m pip python-pip
+    bash install-tool.sh -m pip python-pip
 
     # 安装 policycoreutils-python
-    installTool -m semanage -a "--help" policycoreutils-python
+    bash install-tool.sh -m semanage -a "--help" policycoreutils-python
 
     # 安装 gcc
     # yum install -y gcc
@@ -236,52 +203,11 @@ installTools() {
 
 ## 设置 ssh ##
 setSsh() {
-    echo "# 设置 ssh #"
-
-    # 默认配置
-    ssh_port_default=2222
-
-    # 检查依赖
-    installTool -m firewall-cmd firewalld
-    installTool -m semanage -a "--help" policycoreutils-python
-
-    if [ ${isManual} -eq 1 ]; then
-        read -p "输入ssh监听端口：" ssh_port
-        if [ -z "${ssh_port}" ]; then
-            ssh_port=${ssh_port_default}
-        fi
+    if [ ${is_manual} -eq 1 ]; then
+        bash ${base_dir}/v2ray/ssh.sh
     else
-        # 设置 ssh 端口
-        echo "设置默认ssh监听端口 ${ssh_port_default}"
-        ssh_port=${ssh_port_default}
-
+        bash ${base_dir}/v2ray/ssh.sh -a
     fi
-
-    # 备份配置文件
-    backupFile /etc/ssh/sshd_config
-
-    # 修改 ssh 端口
-    cat >>/etc/ssh/sshd_config <<-EOF
-
-# 修改ssh端口
-Port ${ssh_port}
-EOF
-
-    # 此配置文件修改了
-    # ssh端口号 22 > 2222
-    # cp ${basedir}/ssh/sshd_config /etc/ssh/sshd_config
-
-    # 向 firewall 中添加端口 2222
-    firewall-cmd --zone=public --add-port=${ssh_port}/tcp --permanent
-
-    # 重启 firewall
-    firewall-cmd --reload
-
-    # 在 SELinux 中添加 2222 端口
-    semanage port -a -t ssh_port_t -p tcp ${ssh_port}
-
-    # 重启 ssh
-    service sshd restart
 
 }
 
@@ -293,7 +219,7 @@ addUser() {
     user_name_default=randy
     user_pass_default=rr
 
-    if [ ${isManual} -eq 1 ]; then
+    if [ ${is_manual} -eq 1 ]; then
         read -p "输入用户名（默认：${user_name_default}）：" user_name
         if [ -z "${user_name}" ]; then
             user_name=${user_name_default}
@@ -330,14 +256,14 @@ installTomcat() {
     echo "# 安装 Tomcat #"
 
     echo "检查依赖..."
-    installTool wget
-    installTool -m java java-11-openjdk
-    installTool -m firewall-cmd firewalld
+    bash install-tool.sh wget
+    bash install-tool.sh -m java java-11-openjdk
+    bash install-tool.sh -m firewall-cmd firewalld
 
     # 默认配置
     tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
 
-    if [ ${isManual} -eq 1 ]; then
+    if [ ${is_manual} -eq 1 ]; then
         read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url_default##*/}）：" tomcat_file_url
         if [ -z "${tomcat_file_url}" ]; then
             tomcat_file_url=${tomcat_file_url_default}
@@ -392,8 +318,8 @@ installSs() {
     echo "# 安装 Shadowsocks #"
 
     echo "检查依赖..."
-    installTool -m pip python-pip
-    installTool -m firewall-cmd firewalld
+    bash install-tool.sh -m pip python-pip
+    bash install-tool.sh -m firewall-cmd firewalld
 
     # 更新 pip
     pip install --upgrade pip
@@ -411,7 +337,7 @@ installSs() {
     # 默认 Shadowsocks 加密方法
     ss_method_default=aes-256-cfb
 
-    if [ ${isManual} -eq 1 ]; then
+    if [ ${is_manual} -eq 1 ]; then
         read -p "输入 Shadowsocks 监听端口（默认：${ss_port_default}）：" ss_port
         if [ -z "${ss_port}" ]; then
             ss_port=${ss_port_default}
@@ -443,12 +369,12 @@ installSs() {
     # 复制 Shadowsocks 配置文件到 /ect
     # mkdir -p /etc/shadowsocks
     # unalias cp
-    # cp -f ${basedir}/shadowsocks/config.json /etc/shadowsocks/config.json
+    # cp -f ${base_dir}/shadowsocks/config.json /etc/shadowsocks/config.json
     # alias cp='cp -i'
 
     # 配置服务
     # unalias cp
-    # cp -f ${basedir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
+    # cp -f ${base_dir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
     # alias cp='cp -i'
 
     echo "配置服务..."
@@ -485,8 +411,8 @@ installSsr() {
     echo "# 安装 Shadowsocksr #"
 
     echo "检查依赖..."
-    installTool git
-    installTool -m firewall-cmd firewalld
+    bash install-tool.sh git
+    bash install-tool.sh -m firewall-cmd firewalld
 
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
@@ -506,7 +432,7 @@ installSsr() {
     # 默认 Shadowsocksr OBFS
     ssr_obfs_default=tls1.2_ticket_auth
 
-    if [ ${isManual} -eq 1 ]; then
+    if [ ${is_manual} -eq 1 ]; then
         read -p "输入 Shadowsocksr 监听端口（默认：${ssr_port_default}）：" ssr_port
         if [ -z "${ssr_port}" ]; then
             ssr_port=${ssr_port_default}
@@ -583,95 +509,11 @@ EOF
 installV2ray() {
     echo "# 安装 V2Ray #"
 
-    # 检查依赖
-    installTool -m firewall-cmd firewalld
-
-    # /usr/bin/v2ray/v2ray：V2Ray 程序；
-    # /usr/bin/v2ray/v2ctl：V2Ray 工具；
-    # /etc/v2ray/config.json：配置文件；
-    # /usr/bin/v2ray/geoip.dat：IP 数据文件
-    # /usr/bin/v2ray/geosite.dat：域名数据文件
-    # /etc/systemd/system/v2ray.service: Systemd
-    # /etc/init.d/v2ray: SysV
-    bash <(curl https://install.direct/go.sh) | tee /tmp/v2ray_install.log
-
-    port_tmp=$(grep "^PORT:[0-9]\+" /tmp/v2ray_install.log | grep -o "[0-9]\+")
-
-    # 默认配置
-    v2ray_port_default=58989
-    v2ray_uuid_default=67ff0138-4873-4b0c-912d-a8649b24ecaa
-
-    if [ ${isManual} -eq 1 ]; then
-        read -p "输入V2Ray端口（默认：${v2ray_port_default}）：" v2ray_port
-        if [ -z "${ssr_obfs}" ]; then
-            v2ray_port=${v2ray_port_default}
-        fi
-
-        read -p "输入V2Ray UUID（默认：${v2ray_uuid_default}）：" v2ray_uuid
-        if [ -z "${ssr_obfs}" ]; then
-            v2ray_uuid=${v2ray_uuid_default}
-        fi
+    if [ ${is_manual} -eq 1 ]; then
+        bash ${base_dir}/v2ray/v2ray-install.sh
     else
-        echo "设置默认V2Ray端口：${v2ray_port_default}"
-        v2ray_port=${v2ray_port_default}
-
-        echo "设置默认V2Ray UUID：${v2ray_uuid_default}"
-        v2ray_uuid=${v2ray_uuid_default}
+        bash ${base_dir}/v2ray/v2ray-install.sh -a
     fi
-
-    # 修改端口
-    sed -i 's/\"port\":${port_tmp}.*/\"port\":${v2ray_port}/' /etc/v2ray/config.json
-
-    # 修改UUID
-    sed -i 's/\"id\":.*/\"id\":${v2ray_uuid}/' /etc/v2ray/config.json
-
-    # 运行 V2Ray
-    systemctl daemon-reload
-    systemctl start v2ray.service
-    systemctl enable v2ray.service
-
-    # 为 V2Ray 开启防火墙
-    # Create new chain
-    # iptables -t nat -N V2RAY
-    # iptables -t mangle -N V2RAY
-    # iptables -t mangle -N V2RAY_MARK
-
-    # Ignore your V2Ray server's addresses
-    # It's very IMPORTANT, just be careful.
-    # iptables -t nat -A V2RAY -d 107.175.69.194 -j RETURN
-
-    # Ignore LANs and any other addresses you'd like to bypass the proxy
-    # See Wikipedia and RFC5735 for full list of reserved networks.
-    # iptables -t nat -A V2RAY -d 0.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 10.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 127.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 169.254.0.0/16 -j RETURN
-    # iptables -t nat -A V2RAY -d 172.16.0.0/12 -j RETURN
-    # iptables -t nat -A V2RAY -d 192.168.0.0/16 -j RETURN
-    # iptables -t nat -A V2RAY -d 224.0.0.0/4 -j RETURN
-    # iptables -t nat -A V2RAY -d 240.0.0.0/4 -j RETURN
-    # iptables -t nat -A V2RAY -d 117.150.3.134 -j RETURN
-
-    # Anything else should be redirected to Dokodemo-door's local port
-    # iptables -t nat -A V2RAY -p tcp -j REDIRECT --to-ports 8080
-
-    # Add any UDP rules
-    # ip route add local default dev lo table 100
-    # ip rule add fwmark 1 lookup 100
-    # iptables -t mangle -A V2RAY -p udp --dport 53 -j TPROXY --on-port 12345 --tproxy-mark 0x01/0x01
-    # iptables -t mangle -A V2RAY_MARK -p udp --dport 53 -j MARK --set-mark 1
-
-    # Apply the rules
-    # iptables -t nat -A OUTPUT -p tcp -j V2RAY
-    # iptables -t mangle -A PREROUTING -j V2RAY
-    # iptables -t mangle -A OUTPUT -j V2RAY_MARK
-
-    # 将 V2Ray 的端口加入防火墙
-    firewall-cmd --zone=public --add-port=${v2ray_port}/tcp --permanent
-    firewall-cmd --zone=public --add-port=${v2ray_port}/udp --permanent
-
-    # 重启 firewall
-    firewall-cmd --reload
 
 }
 
@@ -685,7 +527,7 @@ installKcptun() {
     #     yum -y install wget
     # fi
 
-    installTool wget
+    bash install-tool.sh wget
 
     # 设置 kcptun 地址
     kcptun_url=https://github.com/xtaci/kcptun/releases/download/v20190611/kcptun-linux-amd64-20190611.tar.gz
@@ -702,7 +544,7 @@ installKcptun() {
     # 配置 kcptun
     mkdir -p /etc/kcptun/
     unalias cp
-    cp -f ${basedir}/kcptun/server-config.json /etc/kcptun/config.json
+    cp -f ${base_dir}/kcptun/server-config.json /etc/kcptun/config.json
     alias cp='cp -i'
 
     # 启动 kcptun
@@ -715,7 +557,7 @@ installAria2() {
     echo "# 安装 aria2 #"
 
     # 复制 aria2 的配置文件目录，需要把配置文件先放入当前目录下
-    cp -r ${basedir}/aria2 /etc
+    cp -r ${base_dir}/aria2 /etc
 
     # 安装 aria2
     yum install -y aria2
@@ -725,50 +567,37 @@ installAria2() {
 }
 
 # 入口
-# 默认自动设置
-isManual=0
+# 手动设置标志
+is_manual=1
 
-read -p "是否手动设置："
-if [ "$REPLY" = "y" ]; then
-    echo "进入手动设置"
-    isManual=1
-
-    while true ; do
-        cat <<-EOF
-    1. 设置网络
-    2. 更新及安装常用应用
-    3. 设置ssh
-    4. 添加用户
-    5. 安装Tomcat
-    6. 安装Shadowsocks
-    7. 安装Shadowsocksr
-    8. 安装V2Ray
-    q. 退出
+while true; do
+    cat <<-EOF
+        0. 自动模式
+        1. 设置网络
+        2. 更新及安装常用应用
+        3. 设置ssh
+        4. 添加用户
+        5. 安装Tomcat
+        6. 安装Shadowsocks
+        7. 安装Shadowsocksr
+        8. 安装V2Ray
+        q. 退出
 EOF
-        read -p "选择需要设置的项目：" opt
-        case ${opt} in
-        1) setNetwork ;;
-        2) installTools ;;
-        3) setSsh ;;
-        4) addUser ;;
-        5) installTomcat ;;
-        6) installSs ;;
-        7) installSsr ;;
-        8) installV2ray ;;
-        q) exit ;;
-        *) echo "未知选项！" ;;
-        esac
-    done
-else
-    echo "进入自动设置"
-    installTools
-    setSsh
-    addUser
-    installTomcat
-    installSs
-    # installSsr
-    installV2ray
-fi
+    read -p "选择需要设置的项目：" opt
+    case ${opt} in
+    0) is_manual=0 ;;
+    1) setNetwork ;;
+    2) installTools ;;
+    3) setSsh ;;
+    4) addUser ;;
+    5) installTomcat ;;
+    6) installSs ;;
+    7) installSsr ;;
+    8) installV2ray ;;
+    q) exit ;;
+    *) echo "未知选项！" ;;
+    esac
+done
 
 # setRepo
 # installKcptun
