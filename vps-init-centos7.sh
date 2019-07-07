@@ -8,34 +8,13 @@ base_dir=$(
 )
 
 # 设置PATH
-PATH=${PATH}:${base_dir}:${base_dir/tools}
-
-
-# 备份文件函数
-# 用法：    backupFile 文件
-backupFile() {
-    echo "正在备份文件 $1"
-
-    i=0
-    while true; do
-        if [ ! -f "$1.bak${i}" ]; then
-            cp $1 $1.bak${i}
-            if [ $? -eq 0 ]; then
-                echo "备份完成，备份文件到 $1.bak${i}"
-            else
-                echo "备份失败！"
-            fi
-            break
-        fi
-        ((i++))
-    done
-}
+PATH=${PATH}:${base_dir}:${base_dir}/tools
 
 ## 设置 DNS ##
 setDns() {
     echo "# 设置 DNS #"
 
-    backupFile /etc/resolv.conf
+    bash backup-file.sh /etc/resolv.conf
 
     echo "添加 DNS..."
     cat >>/etc/resolv.conf <<-EOF
@@ -91,7 +70,7 @@ setNetwork() {
     ifcfg=ifcfg-${ifname}
 
     # 备份并修改网卡文件
-    backupFile /etc/sysconfig/network-scripts/${ifcfg}
+    bash backup-file.sh /etc/sysconfig/network-scripts/${ifcfg}
 
     # 重启网络
     # service network restart
@@ -131,7 +110,7 @@ setRepo() {
     bash install-tool.sh wget
 
     # 备份
-    backupFile /etc/yum.repos.d/CentOS-Base.repo
+    bash backup-file.sh /etc/yum.repos.d/CentOS-Base.repo
 
     wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
 
@@ -203,10 +182,11 @@ installTools() {
 
 ## 设置 ssh ##
 setSsh() {
+    echo "# 设置 ssh #"
     if [ ${is_manual} -eq 1 ]; then
-        bash ${base_dir}/v2ray/ssh.sh
+        bash ${base_dir}/ssh/ssh.sh install
     else
-        bash ${base_dir}/v2ray/ssh.sh -a
+        bash ${base_dir}/ssh/ssh.sh -a install
     fi
 
 }
@@ -253,63 +233,11 @@ addUser() {
 
 ## 安装 Tomcat ##
 installTomcat() {
-    echo "# 安装 Tomcat #"
-
-    echo "检查依赖..."
-    bash install-tool.sh wget
-    bash install-tool.sh -m java java-11-openjdk
-    bash install-tool.sh -m firewall-cmd firewalld
-
-    # 默认配置
-    tomcat_file_url_default=http://mirror.bit.edu.cn/apache/tomcat/tomcat-9/v9.0.21/bin/apache-tomcat-9.0.21.tar.gz
-
     if [ ${is_manual} -eq 1 ]; then
-        read -p "输入Tomcat文件下载地址（默认版本：${tomcat_file_url_default##*/}）：" tomcat_file_url
-        if [ -z "${tomcat_file_url}" ]; then
-            tomcat_file_url=${tomcat_file_url_default}
-        fi
+        bash ${base_dir}/tomcat/tomcat.sh install
     else
-        echo "设置默认Tomcat文件下载地址 ${tomcat_file_url_default}"
-        tomcat_file_url=${tomcat_file_url_default}
+        bash ${base_dir}/tomcat/tomcat.sh -a install
     fi
-
-    echo "创建目录 /usr/local/tomcat"
-    mkdir /usr/local/tomcat
-
-    # 设置 Tomcat 文件夹名
-    tomcat_homedir_name=$(echo $tomcat_file_url | grep -o "apache-tomcat-[0-9]\+\.[0-9]\+\.[0-9]\+")
-
-    # 获取 Tomcat
-    wget ${tomcat_file_url}
-
-    # 解压 Tomcat
-    echo "解压..."
-    tar -z -x -f ${tomcat_file_url##*/} -C /usr/local/tomcat
-
-    # 配置服务
-    echo "配置服务..."
-    cat >/etc/systemd/system/tomcat.service <<-EOF
-[Unit]
-Description=Tomcat test
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/usr/local/tomcat/${tomcat_homedir_name}/bin/startup.sh
-ExecStop=/usr/local/tomcat/${tomcat_homedir_name}/bin/shutdown.sh
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    systemctl daemon-reload
-    systemctl start tomcat
-    systemctl enable tomcat
-
-    # 向防火墙添加 80 端口,并将80端口的流量转到8080
-    firewall-cmd --zone=public --add-port=80/tcp --permanent
-    firewall-cmd --zone=public --add-forward-port=port=80:proto=tcp:toport=8080 --permanent
-    firewall-cmd --reload
 
 }
 
@@ -510,9 +438,9 @@ installV2ray() {
     echo "# 安装 V2Ray #"
 
     if [ ${is_manual} -eq 1 ]; then
-        bash ${base_dir}/v2ray/v2ray-install.sh
+        bash ${base_dir}/v2ray/v2ray.sh.sh install
     else
-        bash ${base_dir}/v2ray/v2ray-install.sh -a
+        bash ${base_dir}/v2ray/v2ray.sh.sh -a install
     fi
 
 }
@@ -572,16 +500,18 @@ is_manual=1
 
 while true; do
     cat <<-EOF
-        0. 自动模式
-        1. 设置网络
-        2. 更新及安装常用应用
-        3. 设置ssh
-        4. 添加用户
-        5. 安装Tomcat
-        6. 安装Shadowsocks
-        7. 安装Shadowsocksr
-        8. 安装V2Ray
-        q. 退出
+###############################
+0. 自动模式
+1. 设置网络
+2. 更新及安装常用应用
+3. 设置ssh
+4. 添加用户
+5. 安装Tomcat
+6. 安装Shadowsocks
+7. 安装Shadowsocksr
+8. 安装V2Ray
+q. 退出
+###############################
 EOF
     read -p "选择需要设置的项目：" opt
     case ${opt} in

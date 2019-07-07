@@ -29,7 +29,7 @@ install() {
     fi
 
     # 备份配置文件
-    backupFile /etc/ssh/sshd_config
+    bash backup-file.sh /etc/ssh/sshd_config
 
     # 修改 ssh 端口
     cat >>/etc/ssh/sshd_config <<-EOF
@@ -78,5 +78,5 @@ done
 
 case "${cmd}" in
 install) install ;;
-*) ehco "未知命令！" ;;
+*) echo "未知命令！" ;;
 esac

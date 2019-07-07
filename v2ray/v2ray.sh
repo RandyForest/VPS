@@ -1,4 +1,4 @@
-# 用法：    v2ray-install.sh [选项] 命令
+# 用法：    v2ray.sh.sh [选项] 命令
 
 echo "# V2Ray 安装脚本 #"
 
