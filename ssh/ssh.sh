@@ -1,4 +1,14 @@
-echo "# 设置 ssh #"
+# ssh 配置脚本
+
+# 当前文件夹路径
+ssh_base_dir=$(
+    cd $(dirname $0)
+    pwd -P
+)
+
+# 加载环境变量
+source ${init-base_dir}/env-var.sh
+
 
 use_help() {
     cat <<-EOF
@@ -9,6 +19,21 @@ EOF
 }
 
 install() {
+    echo "添加ssh端口"
+
+    if [ ${is_manual} -eq 1 ]; then
+        read -p "输入ssh监听端口：" ssh_port
+        if [ -z "${ssh_port}" ]; then
+            ssh_port=${ssh_port_default}
+        fi
+    else
+        # 设置 ssh 端口
+        echo "设置默认ssh监听端口 ${ssh_port_default}"
+        ssh_port=${ssh_port_default}
+
+    fi
+
+
     # 默认配置
     ssh_port_default=2222
 

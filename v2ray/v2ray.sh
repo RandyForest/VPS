@@ -1,6 +1,4 @@
-# 用法：    v2ray.sh.sh [选项] 命令
-
-echo "# V2Ray 安装脚本 #"
+echo "# 设置 V2Ray #"
 
 use_help() {
     cat <<-EOF

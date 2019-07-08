@@ -1,14 +1,11 @@
 #!/usr/bin/bash
 # CentOS-min shell 脚本
 
-# 设置当前路径
-base_dir=$(
-    cd $(dirname $0)
-    pwd -P
-)
+# 当前文件夹路径
+init_base_dir=$(dirname $0)
 
-# 设置PATH
-PATH=${PATH}:${base_dir}:${base_dir}/tools
+# 加载环境变量
+source ${init-base_dir}/env-var.sh
 
 ## 设置 DNS ##
 setDns() {
@@ -180,17 +177,6 @@ installTools() {
 
 }
 
-## 设置 ssh ##
-setSsh() {
-    echo "# 设置 ssh #"
-    if [ ${is_manual} -eq 1 ]; then
-        bash ${base_dir}/ssh/ssh.sh install
-    else
-        bash ${base_dir}/ssh/ssh.sh -a install
-    fi
-
-}
-
 ## 添加用户 ##
 addUser() {
     echo "# 添加用户 #"
@@ -231,218 +217,95 @@ addUser() {
     usermod -aG wheel ${user_name}
 }
 
+## 设置 ssh ##
+setSsh() {
+    while true; do
+        cat <<-EOF
+###############################
+    1. 添加端口
+    q. 退出
+###############################
+EOF
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) bash ${base_dir}/ssh/ssh.sh install ;;
+        q) return ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
+}
+
 ## 安装 Tomcat ##
 installTomcat() {
-    if [ ${is_manual} -eq 1 ]; then
-        bash ${base_dir}/tomcat/tomcat.sh install
-    else
-        bash ${base_dir}/tomcat/tomcat.sh -a install
-    fi
-
+    while true; do
+        cat <<-EOF
+###############################
+    1. 安装 Tomcat
+    q. 退出
+###############################
+EOF
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) bash ${base_dir}/tomcat/tomcat.sh install ;;
+        q) return ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
 }
 
 ## 安装 Shadowsocks ##
 installSs() {
-    echo "# 安装 Shadowsocks #"
-
-    echo "检查依赖..."
-    bash install-tool.sh -m pip python-pip
-    bash install-tool.sh -m firewall-cmd firewalld
-
-    # 更新 pip
-    pip install --upgrade pip
-
-    # 安装 Shadowsocks
-    pip install shadowsocks
-
-    # 默认配置
-    # 默认 Shadowsocks 监听端口
-    ss_port_default=18989
-
-    # 默认 Shadowsocks 密码
-    ss_pass_default=123456
-
-    # 默认 Shadowsocks 加密方法
-    ss_method_default=aes-256-cfb
-
-    if [ ${is_manual} -eq 1 ]; then
-        read -p "输入 Shadowsocks 监听端口（默认：${ss_port_default}）：" ss_port
-        if [ -z "${ss_port}" ]; then
-            ss_port=${ss_port_default}
-        fi
-
-        read -p "输入 Shadowsocks 密码（默认：${ss_pass_default}）：" ss_pass
-        if [ -z "${ss_pass}" ]; then
-            ss_pass=${ss_pass_default}
-        fi
-
-        read -p "输入 Shadowsocks 加密方法（默认：${ss_method_default}）：" ss_method
-        if [ -z "${ss_method}" ]; then
-            ss_method=${ss_method_default}
-        fi
-    else
-        echo "设置默认 Shadowsocks 监听端口：${ss_port_default}"
-        ss_port=${ss_port_default}
-
-        echo "设置默认 Shadowsocks 密码：${ss_pass_default}"
-        ss_pass=${ss_pass_default}
-
-        echo "设置默认 Shadowsocks 加密方法：${ss_method_default}"
-        ss_method=${ss_method_default}
-    fi
-
-    # 命令行方式启动 Shadowsocks
-    # ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
-
-    # 复制 Shadowsocks 配置文件到 /ect
-    # mkdir -p /etc/shadowsocks
-    # unalias cp
-    # cp -f ${base_dir}/shadowsocks/config.json /etc/shadowsocks/config.json
-    # alias cp='cp -i'
-
-    # 配置服务
-    # unalias cp
-    # cp -f ${base_dir}/shadowsocks/shadowsocks.service /etc/systemd/system/shadowsocks.service
-    # alias cp='cp -i'
-
-    echo "配置服务..."
-    cat >/etc/systemd/system/shadowsocks.service <<-EOF
-[Unit]
-Description=Shadowsocks
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/usr/bin/ssserver -s 0.0.0.0 -p ${ss_port} -k ${ss_pass} -m ${ss_method} -d start
-ExecStop=/usr/bin/ssserver -d stop
-
-[Install]
-WantedBy=multi-user.target
+    while true; do
+        cat <<-EOF
+###############################
+    1. 安装 Shadowsocks
+    q. 退出
+###############################
 EOF
-
-    # 服务方式启动 Shadowshocks
-    systemctl daemon-reload
-    systemctl start shadowsocks
-    systemctl enable shadowsocks
-
-    # 将 Shadowsocks 的端口加入防火墙
-    firewall-cmd --zone=public --add-port=${ss_port}/tcp --permanent
-    firewall-cmd --zone=public --add-port=${ss_port}/udp --permanent
-
-    # 重启 firewall
-    firewall-cmd --reload
-
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) bash ${base_dir}/shadowsocks/shadowsocks.sh install ;;
+        q) return ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
 }
 
 ## 安装 Shadowsocksr ##
 installSsr() {
-    echo "# 安装 Shadowsocksr #"
-
-    echo "检查依赖..."
-    bash install-tool.sh git
-    bash install-tool.sh -m firewall-cmd firewalld
-
-    # 获取 Shadowsocksr
-    git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
-
-    mv ./shadowsocksr /usr/local/
-
-    # 默认配置
-    # 默认 Shadowsocksr 端口
-    ssr_port_default=38989
-
-    # 默认 Shadowsocksr 密码
-    ssr_pass_default=123456
-
-    # 默认 Shadowsocksr 加密方式
-    ssr_method_default=aes-256-cfb
-
-    # 默认 Shadowsocksr OBFS
-    ssr_obfs_default=tls1.2_ticket_auth
-
-    if [ ${is_manual} -eq 1 ]; then
-        read -p "输入 Shadowsocksr 监听端口（默认：${ssr_port_default}）：" ssr_port
-        if [ -z "${ssr_port}" ]; then
-            ssr_port=${ssr_port_default}
-        fi
-
-        read -p "输入 Shadowsocksr 密码（默认：${ssr_pass_default}）：" ssr_pass
-        if [ -z "${ssr_pass}" ]; then
-            ssr_pass=${ssr_pass_default}
-        fi
-
-        read -p "输入 Shadowsocksr 加密方法（默认：${ssr_method_default}）：" ssr_method
-        if [ -z "${ssr_method}" ]; then
-            ssr_method=${ssr_method_default}
-        fi
-
-        read -p "输入 Shadowsocksr OBFS（默认：${ssr_obfs_default}）：" ssr_obfs
-        if [ -z "${ssr_obfs}" ]; then
-            ssr_obfs=${ssr_obfs_default}
-        fi
-    else
-        echo "设置默认 Shadowsocksr 监听端口：${ssr_port_default}"
-        ssr_port=${ssr_port_default}
-
-        echo "设置默认 Shadowsocksr 密码：${ssr_pass_default}"
-        ssr_pass=${ssr_pass_default}
-
-        echo "设置默认 Shadowsocksr 加密方法：${ssr_method_default}"
-        ssr_method=${ssr_method_default}
-
-        echo "设置默认 Shadowsocksr OBFS：${ssr_obfs_default}"
-        ssr_obfs=${ssr_obfs_default}
-
-    fi
-
-    # 命令行方式启动 Shadowsocksr
-    python /usr/local/shadowsocksr/shadowsocks/server.py -p ${ssr_port} -k ${ssr_pass} -m ${ssr_method} -o ${ssr_obfs} -d start
-
-    # 复制 Shadowsocksr 配置文件到 /ect
-    # cp -r shadowsocksr /etc
-
-    # 以加载配置文件方式启动
-    # python shadowsocksr/shadowsocks/server.py -c /etc/shadowsocksr/config.json -d start
-
-    echo "配置服务..."
-    cat >/etc/systemd/system/shadowsocksr.service <<-EOF
-[Unit]
-Description=Shadowsocksr
-After=network.target
-
-[Service]
-Type=forking
-ExecStart=/bin/python /usr/local/shadowsocksr/shadowsocks/server.py -p ${ssr_port} -k ${ssr_pass} -m ${ssr_method} -o ${ssr_obfs} -d start
-ExecStop=/bin/python /usr/local/shadowsocksr/shadowsocks/server.py -d stop
-
-[Install]
-WantedBy=multi-user.target
+    while true; do
+        cat <<-EOF
+###############################
+    1. 安装 Shadowsocksr
+    q. 退出
+###############################
 EOF
-
-    # 服务方式启动 Shadowsocksr
-    systemctl daemon-reload
-    systemctl start shadowsocksr
-    systemctl enable shadowsocksr
-
-    # 将 Shadowsocksr 的端口加入防火墙
-    firewall-cmd --zone=public --add-port=${ssr_port}/tcp --permanent
-    firewall-cmd --zone=public --add-port=${ssr_port}/udp --permanent
-
-    # 重启 firewall
-    firewall-cmd --reload
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) bash ${base_dir}/shadowsocksr/shadowsocksr.sh install ;;
+        q) return ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
 
 }
 
 ## 安装 V2Ray ##
 installV2ray() {
-    echo "# 安装 V2Ray #"
-
-    if [ ${is_manual} -eq 1 ]; then
-        bash ${base_dir}/v2ray/v2ray.sh.sh install
-    else
-        bash ${base_dir}/v2ray/v2ray.sh.sh -a install
-    fi
-
+    while true; do
+        cat <<-EOF
+###############################
+    1. 安装 V2Ray
+    q. 退出
+###############################
+EOF
+        read -p "选择需要设置的项目：" opt
+        case ${opt} in
+        1) bash ${base_dir}/v2ray/v2ray.sh install ;;
+        q) return ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
 }
 
 ## 安装 kcptun ##
@@ -494,39 +357,60 @@ installAria2() {
     aria2c --conf-path="/etc/aria2/aria2.conf"
 }
 
-# 入口
-# 手动设置标志
-is_manual=1
+# 根据配置初始化
+# TODO
+init_of_config() {
+    init_arg=($(bash load-config.sh -a "tomcat_file_url"))
+    read_opt init_arg[@]
 
+    # bash ${base_dir}/ssh/ssh.sh -a install
+    # bash ${base_dir}/tomcat/tomcat.sh -a install
+    # bash ${base_dir}/shadowsocks/shadowsocks.sh -a install
+
+}
+
+# 读取选项
+read_opt() {
+    for opt in $@; do
+        case ${opt} in
+        0) init_of_config ;;
+        1) setNetwork ;;
+        2) installTools ;;
+        3) setSsh ;;
+        4) addUser ;;
+        5) installTomcat ;;
+        6) installSs ;;
+        7) installSsr ;;
+        8) installV2ray ;;
+        q) exit ;;
+        *) echo "未知选项！" ;;
+        esac
+    done
+}
+
+# 入口
 while true; do
     cat <<-EOF
-###############################
-0. 自动模式
-1. 设置网络
-2. 更新及安装常用应用
-3. 设置ssh
-4. 添加用户
-5. 安装Tomcat
-6. 安装Shadowsocks
-7. 安装Shadowsocksr
-8. 安装V2Ray
-q. 退出
-###############################
+##############################################################
+    //0. 使用配置文件自动配置
+    1. 设置网络
+    2. 更新及安装常用应用
+    3. 配置ssh
+    4. 添加用户
+    5. 配置Tomcat
+    6. 配置Shadowsocks
+    7. 配置Shadowsocksr
+    8. 配置V2Ray
+    q. 退出
+
+提示：
+    * 如果要使用配置文件自动部署，需把编号0放置首位
+    * 多个选项用空格隔开
+##############################################################
 EOF
-    read -p "选择需要设置的项目：" opt
-    case ${opt} in
-    0) is_manual=0 ;;
-    1) setNetwork ;;
-    2) installTools ;;
-    3) setSsh ;;
-    4) addUser ;;
-    5) installTomcat ;;
-    6) installSs ;;
-    7) installSsr ;;
-    8) installV2ray ;;
-    q) exit ;;
-    *) echo "未知选项！" ;;
-    esac
+    read -p "选择需要设置的项目：" opt_tmp
+    opt_list=(${opt_tmp})
+    read_opt ${opt_list[@]}
 done
 
 # setRepo
