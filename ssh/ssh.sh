@@ -1,60 +1,33 @@
 # ssh 配置脚本
 
-# 当前文件夹路径
-ssh_base_dir=$(
-    cd $(dirname $0)
-    pwd -P
-)
+# 临时根目录
+ssh_root="/tmp/ssh"
 
-# 加载环境变量
-source ${init-base_dir}/env-var.sh
+# 是否自动
+is_auto=0
 
+# 配置
+ssh_port=2222
 
+# 帮助信息
 use_help() {
-    cat <<-EOF
-用法：  ssh.sh [选项] 命令
-选项：
-    -a  自动模式
-EOF
+    echo "用法：  ssh.sh [选项] 命令"
+    echo "选项："
+    echo "  -a  自动模式"
 }
 
-install() {
-    echo "添加ssh端口"
-
-    if [ ${is_manual} -eq 1 ]; then
-        read -p "输入ssh监听端口：" ssh_port
-        if [ -z "${ssh_port}" ]; then
-            ssh_port=${ssh_port_default}
-        fi
-    else
-        # 设置 ssh 端口
-        echo "设置默认ssh监听端口 ${ssh_port_default}"
-        ssh_port=${ssh_port_default}
-
+modifyPort() {
+    if [ ${is_auto} -eq 0 ]; then
+        read -p "输入ssh监听端口（默认：${ssh_port}）："
+        ssh_port=${REPLY:-${ssh_port}}
     fi
-
-
-    # 默认配置
-    ssh_port_default=2222
 
     # 检查依赖
-    bash install-tool.sh -m firewall-cmd firewalld
-    bash install-tool.sh -m semanage -a "--help" policycoreutils-python
-
-    if [ ${is_manual} -eq 1 ]; then
-        read -p "输入ssh监听端口：" ssh_port
-        if [ -z "${ssh_port}" ]; then
-            ssh_port=${ssh_port_default}
-        fi
-    else
-        # 设置 ssh 端口
-        echo "设置默认ssh监听端口 ${ssh_port_default}"
-        ssh_port=${ssh_port_default}
-
-    fi
+    bash ${tools_dir}/install-tool.sh -m firewall-cmd firewalld
+    bash ${tools_dir}/install-tool.sh -m semanage -a "--help" policycoreutils-python
 
     # 备份配置文件
-    bash backup-file.sh /etc/ssh/sshd_config
+    bash ${tools_dir}/backup-file.sh /etc/ssh/sshd_config
 
     # 修改 ssh 端口
     cat >>/etc/ssh/sshd_config <<-EOF
@@ -81,27 +54,30 @@ EOF
 }
 
 # 入口
-is_manual=1
+main() {
+    if [ -z "$1" ]; then
+        use_help
+        exit 1
+    fi
 
-if [ -z "${cmd}" ]; then
-    use_help
-fi
-
-while [ -n "$1" ]; do
-    case "$1" in
-    -a)
-        is_manual=0
-        cmd=$2
+    while [ -n "$1" ]; do
+        case "$1" in
+        -a)
+            is_manual=0
+            cmd=$2
+            shift
+            ;;
+        *)
+            cmd=$1
+            ;;
+        esac
         shift
-        ;;
-    *)
-        cmd=$1
-        ;;
-    esac
-    shift
-done
+    done
 
-case "${cmd}" in
-install) install ;;
-*) echo "未知命令！" ;;
-esac
+    case "${cmd}" in
+    install) install ;;
+    *) echo "未知命令！" ;;
+    esac
+}
+
+main

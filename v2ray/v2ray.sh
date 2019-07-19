@@ -1,4 +1,18 @@
-echo "# 设置 V2Ray #"
+# 当前文件夹路径
+v2ray_base_dir=$(
+    cd $(dirname $0)
+    pwd -P
+)
+
+# 加载环境变量
+# source ${v2ray_base_dir}/../env-var.sh
+
+# 加载配置文件
+source ${v2ray_base_dir}/../config.sh
+
+
+# 工具目录
+tools_dir=${v2ray_base_dir}/../tools
 
 use_help() {
     cat <<-EOF
@@ -8,9 +22,9 @@ use_help() {
 EOF
 }
 
-install() {
+installV2Ray() {
     # 检查依赖
-    bash install-tool.sh -m firewall-cmd firewalld
+    bash ${tools_dir}/install-tool.sh -m firewall-cmd firewalld
 
     # /usr/bin/v2ray/v2ray：V2Ray 程序；
     # /usr/bin/v2ray/v2ctl：V2Ray 工具；
@@ -56,42 +70,6 @@ install() {
     systemctl start v2ray.service
     systemctl enable v2ray.service
 
-    # 为 V2Ray 开启防火墙
-    # Create new chain
-    # iptables -t nat -N V2RAY
-    # iptables -t mangle -N V2RAY
-    # iptables -t mangle -N V2RAY_MARK
-
-    # Ignore your V2Ray server's addresses
-    # It's very IMPORTANT, just be careful.
-    # iptables -t nat -A V2RAY -d 107.175.69.194 -j RETURN
-
-    # Ignore LANs and any other addresses you'd like to bypass the proxy
-    # See Wikipedia and RFC5735 for full list of reserved networks.
-    # iptables -t nat -A V2RAY -d 0.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 10.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 127.0.0.0/8 -j RETURN
-    # iptables -t nat -A V2RAY -d 169.254.0.0/16 -j RETURN
-    # iptables -t nat -A V2RAY -d 172.16.0.0/12 -j RETURN
-    # iptables -t nat -A V2RAY -d 192.168.0.0/16 -j RETURN
-    # iptables -t nat -A V2RAY -d 224.0.0.0/4 -j RETURN
-    # iptables -t nat -A V2RAY -d 240.0.0.0/4 -j RETURN
-    # iptables -t nat -A V2RAY -d 117.150.3.134 -j RETURN
-
-    # Anything else should be redirected to Dokodemo-door's local port
-    # iptables -t nat -A V2RAY -p tcp -j REDIRECT --to-ports 8080
-
-    # Add any UDP rules
-    # ip route add local default dev lo table 100
-    # ip rule add fwmark 1 lookup 100
-    # iptables -t mangle -A V2RAY -p udp --dport 53 -j TPROXY --on-port 12345 --tproxy-mark 0x01/0x01
-    # iptables -t mangle -A V2RAY_MARK -p udp --dport 53 -j MARK --set-mark 1
-
-    # Apply the rules
-    # iptables -t nat -A OUTPUT -p tcp -j V2RAY
-    # iptables -t mangle -A PREROUTING -j V2RAY
-    # iptables -t mangle -A OUTPUT -j V2RAY_MARK
-
     # 将 V2Ray 的端口加入防火墙
     firewall-cmd --zone=public --add-port=${v2ray_port}/tcp --permanent
     firewall-cmd --zone=public --add-port=${v2ray_port}/udp --permanent
@@ -104,8 +82,9 @@ install() {
 # 入口
 is_manual=1
 
-if [ -z "${cmd}" ]; then
+if [ -z "$1" ]; then
     use_help
+    exit 1
 fi
 
 while [ -n "$1" ]; do

@@ -2,7 +2,14 @@
 ssr_base_dir=$(dirname $0)
 
 # 加载环境变量
-source ${init-base_dir}/env-var.sh
+# source ${ssr-base_dir}/../env-var.sh
+
+# 加载配置文件
+source ${ssr_base_dir}/.//config.sh
+
+
+# 工具目录
+tools_dir=${ssr_base_dir}/../tools
 
 use_help() {
     cat <<-EOF
@@ -14,8 +21,8 @@ EOF
 
 install(){
     echo "检查依赖..."
-    bash install-tool.sh git
-    bash install-tool.sh -m firewall-cmd firewalld
+    bash ${tools_dir}/install-tool.sh git
+    bash ${tools_dir}/install-tool.sh -m firewall-cmd firewalld
 
     # 获取 Shadowsocksr
     git clone https://github.com/shadowsocksr-backup/shadowsocksr.git
@@ -112,6 +119,7 @@ is_manual=1
 
 if [ -z "$1" ]; then
     use_help
+    exit 1
 fi
 
 while [ -n "$1" ]; do
