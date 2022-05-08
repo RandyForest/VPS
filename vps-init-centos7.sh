@@ -23,7 +23,7 @@ setDns() {
     bash ${tools_dir}/backup-file.sh /etc/resolv.conf
 
     echo "添加 DNS..."
-    cat >>/etc/resolv.conf <<-EOF
+    cat >>/etc/resolv.conf <<EOF
 nameserver 8.8.8.8
 nameserver 119.29.29.29
 nameserver 233.5.5.5
@@ -74,7 +74,7 @@ setNetwork() {
 
         echo "设置网关为：${gateway_default}"
         ifname=${gateway_default}
-        
+
         echo "设置DNS为：${dns_list_default}"
         ifname=${dns_list_default}
 
